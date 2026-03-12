@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Rabiscu - Ultimate</title>
+    <title>rabiscu by elimartinhos</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; color: #e0e0e0; touch-action: none; }
         
@@ -40,9 +40,10 @@
             display: none;
         }
 
+        /* Rodapé fixo */
         footer {
             position: fixed; bottom: 10px; right: 15px; font-size: 12px;
-            color: rgba(255,255,255,0.5); z-index: 5; pointer-events: none;
+            color: rgba(0,0,0,0.5); z-index: 5; pointer-events: none; font-weight: bold;
         }
     </style>
 </head>
@@ -51,7 +52,7 @@
     <div id="custom-cursor"></div>
 
     <div id="login-screen">
-        <h2>Rabiscu</h2>
+        <h2>rabiscu by elimartinhos</h2>
         <input type="email" id="email_input" placeholder="E-mail">
         <input type="password" id="password_input" placeholder="Senha">
         <button id="btn-login">Entrar</button>
@@ -178,7 +179,7 @@
                 type: currentMode === 'eraser' ? 'pen' : currentMode,
                 points: [{ x: pos.x, y: pos.y }],
                 color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value,
-                size: sizeSlider.value // O slider afeta TODOS agora
+                size: sizeSlider.value
             });
         };
 
@@ -219,13 +220,27 @@
             ctx.scale(scale, scale);
             allStrokes.forEach(s => {
                 ctx.strokeStyle = s.color; ctx.lineWidth = s.size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
-                ctx.moveTo(s.points[0].x, s.points[0].y);
-                if (s.type === 'pen') s.points.forEach(p => ctx.lineTo(p.x, p.y));
-                else if (s.points[1]) {
+                
+                const p0 = s.points[0];
+                if (s.type === 'pen') {
+                    ctx.moveTo(p0.x, p0.y);
+                    s.points.forEach(p => ctx.lineTo(p.x, p.y));
+                } else if (s.points[1]) {
                     const p1 = s.points[1];
-                    if (s.type === 'line') ctx.lineTo(p1.x, p1.y);
-                    else if (s.type === 'rect') ctx.strokeRect(s.points[0].x, s.points[0].y, p1.x - s.points[0].x, p1.y - s.points[0].y);
-                    else if (s.type === 'circle') ctx.arc(s.points[0].x, s.points[0].y, Math.hypot(p1.x - s.points[0].x, p1.y - s.points[0].y), 0, Math.PI * 2);
+                    if (s.type === 'line') {
+                        ctx.moveTo(p0.x, p0.y);
+                        ctx.lineTo(p1.x, p1.y);
+                    } else if (s.type === 'rect') {
+                        ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+                    } else if (s.type === 'circle') {
+                        // Cálculo para expandir a partir do clique (não do centro)
+                        const dx = p1.x - p0.x;
+                        const dy = p1.y - p0.y;
+                        const r = Math.sqrt(dx*dx + dy*dy) / 2;
+                        const cx = p0.x + dx / 2;
+                        const cy = p0.y + dy / 2;
+                        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                    }
                 }
                 ctx.stroke();
             });
