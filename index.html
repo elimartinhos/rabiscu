@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rabiscu - Formas e Cores</title>
+    <title>Rabiscu - Slider de Precisão</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; }
         #login-screen { display: flex; flex-direction: column; width: 300px; margin: 100px auto; gap: 12px; background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
@@ -17,7 +17,6 @@
         #mural-screen { display: none; background: white; width: 100vw; height: 100vh; position: relative; }
         canvas { display: block; background-color: #ffffff; cursor: crosshair; }
 
-        /* UI CONTROLS */
         #ui-controls { 
             position: absolute; top: 10px; left: 10px; z-index: 10; 
             background: #1e1e1e; color: white; padding: 10px; 
@@ -25,16 +24,13 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.4); border: 1px solid #444; 
         }
 
-        /* CIRCULO DE COR PERSONALIZADO */
         .color-container { position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
-        #colorPicker { 
-            position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2;
-        }
-        .color-preview { 
-            width: 28px; height: 28px; border-radius: 50%; 
-            border: 2px solid white; box-shadow: 0 0 0 1px #444;
-            background: black; z-index: 1;
-        }
+        #colorPicker { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2; }
+        .color-preview { width: 28px; height: 28px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 1px #444; background: black; z-index: 1; }
+
+        /* ESTILO DO SLIDER */
+        .slider-container { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #aaa; }
+        input[type="range"] { cursor: pointer; accent-color: #3b82f6; width: 80px; }
 
         select { background: #2c2c2c; color: white; border: 1px solid #444; padding: 6px; border-radius: 6px; outline: none; }
         .hint { font-size: 11px; color: #aaa; }
@@ -58,11 +54,11 @@
                 <div id="colorPreview" class="color-preview"></div>
             </div>
             
-            <select id="sizePicker">
-                <option value="2">Fino</option>
-                <option value="5" selected>Médio</option>
-                <option value="12">Grosso</option>
-            </select>
+            <div class="slider-container">
+                <span>2px</span>
+                <input type="range" id="sizeSlider" min="2" max="12" value="5">
+                <span>12px</span>
+            </div>
 
             <select id="shapePicker">
                 <option value="pencil">Lápis ✏️</option>
@@ -72,7 +68,7 @@
                 <option value="tri">Triângulo 🔺</option>
             </select>
 
-            <span class="hint">Botão Direito: Move</span>
+            <span class="hint">Dir: Move</span>
             <button id="btn-logout">Sair</button>
         </div>
         <canvas id="canvas"></canvas>
@@ -100,19 +96,18 @@
         const ctx = canvas.getContext('2d');
         const colorPicker = document.getElementById('colorPicker');
         const colorPreview = document.getElementById('colorPreview');
+        const sizeSlider = document.getElementById('sizeSlider');
 
         let offsetX = 0, offsetY = 0, isDrawing = false, isPanning = false, startX, startY;
         let allStrokes = [];
         let tempStroke = null;
 
-        // Atualiza o circulinho de cor
         colorPicker.oninput = () => colorPreview.style.background = colorPicker.value;
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
         window.addEventListener('resize', resize);
         resize();
 
-        // Auth
         document.getElementById('btn-signup').onclick = () => createUserWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = e.message);
         document.getElementById('btn-login').onclick = () => signInWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = "Erro no login.");
         document.getElementById('btn-logout').onclick = () => signOut(auth);
@@ -137,7 +132,7 @@
                 isDrawing = true;
                 tempStroke = {
                     color: colorPicker.value,
-                    size: sizePicker.value,
+                    size: sizeSlider.value,
                     shape: shapePicker.value,
                     points: [{ x: e.clientX - offsetX, y: e.clientY - offsetY }]
                 };
@@ -153,10 +148,10 @@
                 if (tempStroke.shape === 'pencil') {
                     tempStroke.points.push(p);
                 } else {
-                    tempStroke.points[1] = p; // Ponto final para formas
+                    tempStroke.points[1] = p;
                 }
                 render();
-                drawSingle(tempStroke); // Preview em tempo real
+                drawSingle(tempStroke);
             }
         });
 
@@ -176,25 +171,16 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.beginPath();
-
             const p0 = { x: s.points[0].x + offsetX, y: s.points[0].y + offsetY };
-            
             if (s.shape === 'pencil') {
                 ctx.moveTo(p0.x, p0.y);
                 s.points.forEach(p => ctx.lineTo(p.x + offsetX, p.y + offsetY));
             } else if (s.points[1]) {
                 const p1 = { x: s.points[1].x + offsetX, y: s.points[1].y + offsetY };
-                if (s.shape === 'line') {
-                    ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y);
-                } else if (s.shape === 'rect') {
-                    ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
-                } else if (s.shape === 'circle') {
-                    let r = Math.sqrt(Math.pow(p1.x-p0.x,2)+Math.pow(p1.y-p0.y,2));
-                    ctx.arc(p0.x, p0.y, r, 0, Math.PI*2);
-                } else if (s.shape === 'tri') {
-                    ctx.moveTo(p0.x + (p1.x - p0.x) / 2, p0.y);
-                    ctx.lineTo(p0.x, p1.y); ctx.lineTo(p1.x, p1.y); ctx.closePath();
-                }
+                if (s.shape === 'line') { ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); }
+                else if (s.shape === 'rect') { ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y); }
+                else if (s.shape === 'circle') { let r = Math.sqrt(Math.pow(p1.x-p0.x,2)+Math.pow(p1.y-p0.y,2)); ctx.arc(p0.x, p0.y, r, 0, Math.PI*2); }
+                else if (s.shape === 'tri') { ctx.moveTo(p0.x + (p1.x - p0.x) / 2, p0.y); ctx.lineTo(p0.x, p1.y); ctx.lineTo(p1.x, p1.y); ctx.closePath(); }
             }
             ctx.stroke();
         }
