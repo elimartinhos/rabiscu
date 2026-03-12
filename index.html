@@ -1,38 +1,38 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rabiscu - Estável</title>
+    <title>Rabiscu - Dark Mode</title>
     <style>
-        /* UI DARK */
-        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; }
+        /* MODO ESCURO */
+        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; color: #e0e0e0; }
         #login-screen { 
-            display: flex; flex-direction: column; width: 300px; 
+            display: flex; flex-direction: column; width: 320px; 
             margin: 100px auto; gap: 12px; background: #1e1e1e; 
             padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
         }
-        h2 { text-align: center; color: #fff; margin: 0 0 10px 0; }
-        input { padding: 12px; background: #2c2c2c; color: #fff; border: 1px solid #333; border-radius: 6px; }
-        button { padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        #btn-login { background: #3b82f6; color: white; }
-        #btn-signup { background: #10b981; color: white; }
-        #btn-logout { background: #ef4444; color: white; }
-
-        /* MURAL BRANCO */
-        #mural-screen { display: none; background: white; width: 100vw; height: 100vh; }
-        canvas { display: block; background-color: #ffffff; cursor: crosshair; }
-
-        /* TOOLBAR */
-        #ui-controls { 
-            position: absolute; top: 10px; left: 10px; z-index: 10; 
-            background: #1e1e1e; color: white; padding: 10px; 
-            border-radius: 8px; display: flex; gap: 15px; align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #333;
+        h2 { text-align: center; margin-top: 0; color: #fff; }
+        input { 
+            padding: 12px; font-size: 16px; border: 1px solid #333; 
+            border-radius: 6px; background: #2c2c2c; color: #fff; 
         }
-        input[type="color"] { width: 30px; height: 30px; border: none; background: none; cursor: pointer; }
-        select { background: #2c2c2c; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; }
-        #msg { color: #ff6b6b; font-size: 13px; text-align: center; margin-top: 10px; }
+        button { padding: 12px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        #btn-login { background: #3b82f6; color: white; }
+        #btn-login:hover { background: #2563eb; }
+        #btn-signup { background: #10b981; color: white; }
+        #btn-signup:hover { background: #059669; }
+        #btn-logout { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; pointer-events: auto; }
+        
+        #ui-controls { 
+            position: absolute; top: 15px; left: 15px; z-index: 10; 
+            background: rgba(30, 30, 30, 0.9); padding: 12px; 
+            border-radius: 8px; display: flex; gap: 15px; align-items: center;
+            border: 1px solid #333; pointer-events: none;
+        }
+        canvas { display: block; background-color: #121212; cursor: crosshair; }
+        #msg { color: #ff6b6b; font-size: 13px; text-align: center; min-height: 18px; }
     </style>
 </head>
 <body>
@@ -42,19 +42,13 @@
         <input type="email" id="email_input" placeholder="E-mail">
         <input type="password" id="password_input" placeholder="Senha">
         <button id="btn-login">Entrar</button>
-        <button id="btn-signup">Criar Conta</button>
+        <button id="btn-signup">Criar Conta Grátis</button>
         <p id="msg"></p>
     </div>
 
-    <div id="mural-screen">
+    <div id="mural-screen" style="display: none;">
         <div id="ui-controls">
-            <input type="color" id="colorPicker" value="#000000">
-            <select id="sizePicker">
-                <option value="2">Fino</option>
-                <option value="5" selected>Médio</option>
-                <option value="10">Grosso</option>
-            </select>
-            <span style="font-size: 12px;">Esquerdo: Desenha | Direito: Move</span>
+            <span>🎨 Esquerdo: Desenha | 🖐️ Direito: Move tela</span>
             <button id="btn-logout">Sair</button>
         </div>
         <canvas id="canvas"></canvas>
@@ -80,12 +74,14 @@
         const auth = getAuth(app);
         const db = getDatabase(app);
 
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
         const emailInp = document.getElementById('email_input');
         const passInp = document.getElementById('password_input');
         const msg = document.getElementById('msg');
-        
+        const loginScreen = document.getElementById('login-screen');
+        const muralScreen = document.getElementById('mural-screen');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
         let offsetX = 0, offsetY = 0;
         let isDrawing = false, isPanning = false;
         let startX, startY;
@@ -99,27 +95,31 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // AUTH
+        // CORREÇÃO DOS BOTÕES
         document.getElementById('btn-signup').onclick = () => {
+            msg.innerText = "Processando...";
             createUserWithEmailAndPassword(auth, emailInp.value, passInp.value)
                 .catch(e => msg.innerText = "Erro: " + e.message);
         };
+
         document.getElementById('btn-login').onclick = () => {
+            msg.innerText = "Entrando...";
             signInWithEmailAndPassword(auth, emailInp.value, passInp.value)
-                .catch(e => msg.innerText = "Usuário não encontrado ou dados incorretos.");
+                .catch(e => msg.innerText = "Erro: " + e.message);
         };
+
         document.getElementById('btn-logout').onclick = () => signOut(auth);
 
         onAuthStateChanged(auth, user => {
             if (user) {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('mural-screen').style.display = 'block';
+                loginScreen.style.display = 'none';
+                muralScreen.style.display = 'block';
                 loadStrokes();
-                setTimeout(resize, 100);
+                resize();
             } else {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('mural-screen').style.display = 'none';
-                allStrokes = [];
+                loginScreen.style.display = 'flex';
+                muralScreen.style.display = 'none';
+                msg.innerText = "";
             }
         });
 
@@ -129,13 +129,12 @@
                 isPanning = true; 
                 startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
             } else { 
-                isDrawing = true;
-                const newStroke = {
-                    color: document.getElementById('colorPicker').value,
-                    size: document.getElementById('sizePicker').value,
-                    points: [{ x: e.clientX - offsetX, y: e.clientY - offsetY }]
-                };
-                allStrokes.push(newStroke);
+                isDrawing = true; 
+                const stroke = [{ x: e.clientX - offsetX, y: e.clientY - offsetY }];
+                allStrokes.push(stroke); 
+                // Inicia o desenho visualmente
+                ctx.beginPath();
+                ctx.moveTo(e.clientX, e.clientY);
             }
         });
 
@@ -145,40 +144,42 @@
                 render();
             } else if (isDrawing) {
                 const p = { x: e.clientX - offsetX, y: e.clientY - offsetY };
-                allStrokes[allStrokes.length - 1].points.push(p);
-                render();
+                allStrokes[allStrokes.length - 1].push(p);
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = 'round';
+                ctx.lineTo(e.clientX, e.clientY);
+                ctx.stroke();
             }
         });
 
-        window.addEventListener('mouseup', () => {
-            if (isDrawing) {
-                const last = allStrokes[allStrokes.length - 1];
-                if (last.points.length > 1) push(ref(db, 'strokes'), last);
+        window.addEventListener('mouseup', (e) => {
+            if (isDrawing && e.button === 0) {
+                const lastStroke = allStrokes[allStrokes.length - 1];
+                if (lastStroke.length > 1) push(ref(db, 'strokes'), lastStroke);
             }
             isDrawing = false; isPanning = false;
         });
 
+        canvas.oncontextmenu = (e) => e.preventDefault();
+
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = 'round';
             allStrokes.forEach(s => {
-                ctx.strokeStyle = s.color;
-                ctx.lineWidth = s.size;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
+                if(s.length < 2) return;
                 ctx.beginPath();
-                ctx.moveTo(s.points[0].x + offsetX, s.points[0].y + offsetY);
-                s.points.forEach(p => ctx.lineTo(p.x + offsetX, p.y + offsetY));
+                ctx.moveTo(s[0].x + offsetX, s[0].y + offsetY);
+                for(let i=1; i<s.length; i++) ctx.lineTo(s[i].x + offsetX, s[i].y + offsetY);
                 ctx.stroke();
             });
         }
 
         function loadStrokes() {
-            onChildAdded(ref(db, 'strokes'), snap => {
+            allStrokes = [];
+            onChildAdded(ref(db, 'strokes'), (snap) => {
                 allStrokes.push(snap.val());
                 render();
             });
         }
-        canvas.oncontextmenu = e => e.preventDefault();
     </script>
 </body>
 </html>
