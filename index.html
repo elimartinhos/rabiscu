@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rabiscu - Oficial</title>
+    <title>Rabiscu - Estável</title>
     <style>
+        /* UI DARK */
         body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; }
-        
-        /* LOGIN DARK */
         #login-screen { 
-            display: flex; flex-direction: column; width: 320px; 
+            display: flex; flex-direction: column; width: 300px; 
             margin: 100px auto; gap: 12px; background: #1e1e1e; 
             padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
         }
@@ -21,18 +20,18 @@
         #btn-logout { background: #ef4444; color: white; }
 
         /* MURAL BRANCO */
-        #mural-screen { display: none; background: white; width: 100vw; height: 100vh; position: relative; }
+        #mural-screen { display: none; background: white; width: 100vw; height: 100vh; }
         canvas { display: block; background-color: #ffffff; cursor: crosshair; }
 
-        /* TOOLS */
+        /* TOOLBAR */
         #ui-controls { 
             position: absolute; top: 10px; left: 10px; z-index: 10; 
             background: #1e1e1e; color: white; padding: 10px; 
-            border-radius: 8px; display: flex; gap: 10px; align-items: center;
+            border-radius: 8px; display: flex; gap: 15px; align-items: center;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #333;
         }
-        .tool-group { display: flex; align-items: center; gap: 5px; border-right: 1px solid #444; padding-right: 10px; }
-        select, input[type="color"] { background: #2c2c2c; color: white; border: 1px solid #444; border-radius: 4px; cursor: pointer; }
+        input[type="color"] { width: 30px; height: 30px; border: none; background: none; cursor: pointer; }
+        select { background: #2c2c2c; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; }
         #msg { color: #ff6b6b; font-size: 13px; text-align: center; margin-top: 10px; }
     </style>
 </head>
@@ -49,22 +48,13 @@
 
     <div id="mural-screen">
         <div id="ui-controls">
-            <div class="tool-group">
-                <input type="color" id="colorPicker" value="#000000">
-                <select id="sizePicker">
-                    <option value="2">Fino</option>
-                    <option value="5" selected>Médio</option>
-                    <option value="10">Grosso</option>
-                </select>
-            </div>
-            <div class="tool-group">
-                <select id="shapePicker">
-                    <option value="pencil">Lápis</option>
-                    <option value="rect">Retângulo</option>
-                    <option value="circle">Círculo</option>
-                </select>
-            </div>
-            <span style="font-size: 12px;">D: Desenha | R: Move</span>
+            <input type="color" id="colorPicker" value="#000000">
+            <select id="sizePicker">
+                <option value="2">Fino</option>
+                <option value="5" selected>Médio</option>
+                <option value="10">Grosso</option>
+            </select>
+            <span style="font-size: 12px;">Esquerdo: Desenha | Direito: Move</span>
             <button id="btn-logout">Sair</button>
         </div>
         <canvas id="canvas"></canvas>
@@ -100,7 +90,6 @@
         let isDrawing = false, isPanning = false;
         let startX, startY;
         let allStrokes = [];
-        let currentStroke = null;
 
         function resize() { 
             canvas.width = window.innerWidth; 
@@ -117,7 +106,7 @@
         };
         document.getElementById('btn-login').onclick = () => {
             signInWithEmailAndPassword(auth, emailInp.value, passInp.value)
-                .catch(e => msg.innerText = "Usuário não encontrado ou senha incorreta.");
+                .catch(e => msg.innerText = "Usuário não encontrado ou dados incorretos.");
         };
         document.getElementById('btn-logout').onclick = () => signOut(auth);
 
@@ -126,10 +115,11 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('mural-screen').style.display = 'block';
                 loadStrokes();
-                resize();
+                setTimeout(resize, 100);
             } else {
                 document.getElementById('login-screen').style.display = 'flex';
                 document.getElementById('mural-screen').style.display = 'none';
+                allStrokes = [];
             }
         });
 
@@ -140,12 +130,12 @@
                 startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
             } else { 
                 isDrawing = true;
-                currentStroke = {
+                const newStroke = {
                     color: document.getElementById('colorPicker').value,
                     size: document.getElementById('sizePicker').value,
-                    shape: document.getElementById('shapePicker').value,
                     points: [{ x: e.clientX - offsetX, y: e.clientY - offsetY }]
                 };
+                allStrokes.push(newStroke);
             }
         });
 
@@ -153,57 +143,36 @@
             if (isPanning) {
                 offsetX = e.clientX - startX; offsetY = e.clientY - startY;
                 render();
-            } else if (isDrawing && currentStroke) {
+            } else if (isDrawing) {
                 const p = { x: e.clientX - offsetX, y: e.clientY - offsetY };
-                if (currentStroke.shape === 'pencil') {
-                    currentStroke.points.push(p);
-                } else {
-                    currentStroke.points[1] = p; // Destino da forma
-                }
+                allStrokes[allStrokes.length - 1].points.push(p);
                 render();
-                drawSingleStroke(currentStroke); // Feedback instantâneo
             }
         });
 
         window.addEventListener('mouseup', () => {
-            if (isDrawing && currentStroke) {
-                if (currentStroke.points.length > 1) {
-                    push(ref(db, 'strokes'), currentStroke);
-                }
+            if (isDrawing) {
+                const last = allStrokes[allStrokes.length - 1];
+                if (last.points.length > 1) push(ref(db, 'strokes'), last);
             }
-            isDrawing = false; isPanning = false; currentStroke = null;
+            isDrawing = false; isPanning = false;
         });
-
-        function drawSingleStroke(s) {
-            ctx.strokeStyle = s.color;
-            ctx.lineWidth = s.size;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.beginPath();
-            
-            const p0 = { x: s.points[0].x + offsetX, y: s.points[0].y + offsetY };
-            
-            if (s.shape === 'pencil') {
-                ctx.moveTo(p0.x, p0.y);
-                s.points.forEach(p => ctx.lineTo(p.x + offsetX, p.y + offsetY));
-            } else if (s.points[1]) {
-                const p1 = { x: s.points[1].x + offsetX, y: s.points[1].y + offsetY };
-                if (s.shape === 'rect') ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
-                if (s.shape === 'circle') {
-                    const r = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2));
-                    ctx.arc(p0.x, p0.y, r, 0, Math.PI * 2);
-                }
-            }
-            ctx.stroke();
-        }
 
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            allStrokes.forEach(s => drawSingleStroke(s));
+            allStrokes.forEach(s => {
+                ctx.strokeStyle = s.color;
+                ctx.lineWidth = s.size;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(s.points[0].x + offsetX, s.points[0].y + offsetY);
+                s.points.forEach(p => ctx.lineTo(p.x + offsetX, p.y + offsetY));
+                ctx.stroke();
+            });
         }
 
         function loadStrokes() {
-            allStrokes = [];
             onChildAdded(ref(db, 'strokes'), snap => {
                 allStrokes.push(snap.val());
                 render();
