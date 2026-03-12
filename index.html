@@ -3,43 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Rabiscu - Pro</title>
+    <title>Rabiscu - Ultimate</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #f0f0f0; color: #333; touch-action: none; }
+        /* TELA DE LOGIN DARK MODE */
+        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; color: #e0e0e0; touch-action: none; }
+        
         #login-screen { 
             display: flex; flex-direction: column; width: 320px; 
-            margin: 100px auto; gap: 12px; background: #fff; 
-            padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            margin: 100px auto; gap: 12px; background: #1e1e1e; 
+            padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
         }
-        h2 { text-align: center; margin-top: 0; color: #1a1a1a; }
-        input { padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 6px; }
-        button { padding: 12px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        h2 { text-align: center; margin-top: 0; color: #fff; }
+        input { padding: 12px; font-size: 16px; border: 1px solid #333; border-radius: 6px; background: #2c2c2c; color: #fff; }
+        button { padding: 12px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         #btn-login { background: #3b82f6; color: white; }
         #btn-signup { background: #10b981; color: white; }
+        #msg { color: #ff6b6b; font-size: 13px; text-align: center; min-height: 18px; font-weight: bold; }
         
+        /* UI DO MURAL */
         #ui-controls { 
             position: absolute; top: 10px; left: 10px; z-index: 10; 
-            background: rgba(30, 30, 30, 0.9); padding: 8px; 
+            background: rgba(20, 20, 20, 0.95); padding: 10px; 
             border-radius: 8px; display: flex; gap: 8px; align-items: center;
-            flex-wrap: wrap; max-width: 90vw; border: 1px solid #333; color: white;
+            flex-wrap: wrap; max-width: 95vw; border: 1px solid #444; color: white;
         }
-        canvas { display: block; background-color: #ffffff; }
-        .tool-btn { background: #444; color: white; padding: 6px 10px; border-radius: 4px; font-size: 11px; border: none; }
-        .tool-btn.active { background: #3b82f6; }
         
-        /* Cursor da Borracha */
-        .cursor-eraser { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="none" stroke="black" stroke-width="1"/></svg>') 16 16, auto; }
+        /* SLIDER DE PONTA A PONTA */
+        #size-slider { width: 100px; margin: 0; padding: 0; cursor: pointer; }
+        
+        canvas { display: block; background-color: #ffffff; cursor: none; } /* Cursor custom via JS */
+        .tool-btn { background: #333; color: white; padding: 6px 12px; border-radius: 4px; font-size: 11px; border: 1px solid #555; }
+        .tool-btn.active { background: #3b82f6; border-color: #fff; }
+
+        /* Cursor visual no Canvas */
+        #custom-cursor {
+            position: fixed; pointer-events: none; border: 1px solid rgba(0,0,0,0.5);
+            border-radius: 50%; transform: translate(-50%, -50%); z-index: 9999;
+            display: none;
+        }
     </style>
 </head>
 <body>
+
+    <div id="custom-cursor"></div>
 
     <div id="login-screen">
         <h2>Rabiscu</h2>
         <input type="email" id="email_input" placeholder="E-mail">
         <input type="password" id="password_input" placeholder="Senha">
         <button id="btn-login">Entrar</button>
-        <button id="btn-signup">Criar Conta</button>
-        <p id="msg" style="color:red; font-size:12px; text-align:center;"></p>
+        <button id="btn-signup">Criar Conta Grátis</button>
+        <p id="msg"></p>
     </div>
 
     <div id="mural-screen" style="display: none;">
@@ -47,10 +61,11 @@
             <button id="tool-pen" class="tool-btn active">Lápis</button>
             <button id="tool-eraser" class="tool-btn">Borracha</button>
             <button id="tool-line" class="tool-btn">Linha</button>
-            <button id="tool-rect" class="tool-btn">Quadrado</button>
-            <button id="tool-circle" class="tool-btn">Círculo</button>
+            <button id="tool-rect" class="tool-btn">Quad</button>
+            <button id="tool-circle" class="tool-btn">Circ</button>
             <input type="range" id="size-slider" min="1" max="50" value="5">
-            <button onclick="location.reload()" style="background:#ef4444; color:white; font-size:10px; padding:5px;">Sair</button>
+            <span id="zoom-label" style="font-size: 10px; min-width: 35px;">100%</span>
+            <button onclick="location.reload()" style="background:#ef4444; color:white; font-size:10px; padding:5px; border:none; border-radius:4px;">Sair</button>
         </div>
         <canvas id="canvas"></canvas>
     </div>
@@ -73,24 +88,52 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getDatabase(app);
-
-        // Correção para Mobile: Garante persistência da sessão
         setPersistence(auth, browserLocalPersistence);
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const cursor = document.getElementById('custom-cursor');
         const sizeSlider = document.getElementById('size-slider');
+        const zoomLabel = document.getElementById('zoom-label');
         
-        let offsetX = 0, offsetY = 0, isDrawing = false, isPanning = false;
+        let offsetX = 0, offsetY = 0, scale = 1;
+        let isDrawing = false, isPanning = false;
         let startX, startY, allStrokes = [], currentMode = 'pen';
+        let lastDist = 0; // Para pinch zoom
 
-        // Interface de ferramentas
+        // HANDLE ERROS DE LOGIN
+        const handleAuthError = (error) => {
+            const map = {
+                'auth/invalid-credential': 'E-mail ou senha incorretos.',
+                'auth/user-not-found': 'Usuário não encontrado.',
+                'auth/wrong-password': 'Senha incorreta.',
+                'auth/invalid-email': 'E-mail inválido.',
+                'auth/weak-password': 'Senha deve ter no mínimo 6 caracteres.'
+            };
+            document.getElementById('msg').innerText = map[error.code] || "Erro: " + error.message;
+        };
+
+        // CURSOR DINÂMICO
+        const updateCursor = (e) => {
+            if (currentMode === 'pen' || currentMode === 'eraser') {
+                cursor.style.display = 'block';
+                const size = sizeSlider.value * scale;
+                cursor.style.width = size + 'px';
+                cursor.style.height = size + 'px';
+                cursor.style.left = e.clientX + 'px';
+                cursor.style.top = e.clientY + 'px';
+                cursor.style.background = currentMode === 'eraser' ? '#fff' : 'rgba(0,0,0,0.2)';
+            } else {
+                cursor.style.display = 'none';
+            }
+        };
+
+        // ALTERNAR FERRAMENTAS
         document.querySelectorAll('.tool-btn').forEach(btn => {
             btn.onclick = () => {
                 document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentMode = btn.id.replace('tool-', '');
-                canvas.className = currentMode === 'eraser' ? 'cursor-eraser' : '';
             };
         });
 
@@ -102,12 +145,14 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Auth
+        // AUTH
         document.getElementById('btn-login').onclick = () => {
-            signInWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = e.message);
+            document.getElementById('msg').innerText = "Entrando...";
+            signInWithEmailAndPassword(auth, email_input.value, password_input.value).catch(handleAuthError);
         };
         document.getElementById('btn-signup').onclick = () => {
-            createUserWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = e.message);
+            document.getElementById('msg').innerText = "Criando...";
+            createUserWithEmailAndPassword(auth, email_input.value, password_input.value).catch(handleAuthError);
         };
 
         onAuthStateChanged(auth, user => {
@@ -119,26 +164,55 @@
             }
         });
 
-        // Eventos (Mouse + Touch)
+        // ZOOM E PANNING
+        window.addEventListener('wheel', (e) => {
+            const zoomSpeed = 0.1;
+            const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+            const oldScale = scale;
+            scale = Math.min(Math.max(0.1, scale + delta), 5);
+            zoomLabel.innerText = Math.round(scale * 100) + "%";
+            render();
+        }, { passive: false });
+
         const getPos = (e) => {
             const t = e.touches ? e.touches[0] : e;
-            return { x: t.clientX - offsetX, y: t.clientY - offsetY };
+            return { 
+                x: (t.clientX - offsetX) / scale, 
+                y: (t.clientY - offsetY) / scale 
+            };
         };
 
+        // EVENTOS
         const start = (e) => {
-            if (e.button === 2) { isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; return; }
+            if (e.touches && e.touches.length === 2) {
+                lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                return;
+            }
+            if (e.button === 2) { 
+                isPanning = true; 
+                startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
+                return; 
+            }
             isDrawing = true;
             const pos = getPos(e);
-            startX = pos.x; startY = pos.y;
             allStrokes.push({ 
                 type: currentMode === 'eraser' ? 'pen' : currentMode,
-                points: [{ x: startX, y: startY }],
+                points: [{ x: pos.x, y: pos.y }],
                 color: currentMode === 'eraser' ? '#ffffff' : '#000000',
                 size: sizeSlider.value
             });
         };
 
         const move = (e) => {
+            updateCursor(e.touches ? e.touches[0] : e);
+            if (e.touches && e.touches.length === 2) {
+                const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                scale *= (dist / lastDist);
+                lastDist = dist;
+                zoomLabel.innerText = Math.round(scale * 100) + "%";
+                render();
+                return;
+            }
             if (isPanning) { offsetX = e.clientX - startX; offsetY = e.clientY - startY; render(); return; }
             if (!isDrawing) return;
             const pos = getPos(e);
@@ -156,30 +230,33 @@
         canvas.addEventListener('mousedown', start);
         window.addEventListener('mousemove', move);
         window.addEventListener('mouseup', end);
-        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); }, {passive: false});
-        window.addEventListener('touchmove', (e) => { move(e); }, {passive: false});
+        canvas.addEventListener('touchstart', (e) => { if(e.touches.length < 2) start(e); }, {passive: false});
+        window.addEventListener('touchmove', move, {passive: false});
         window.addEventListener('touchend', end);
         canvas.oncontextmenu = (e) => e.preventDefault();
 
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
             allStrokes.forEach(s => {
-                ctx.strokeStyle = s.color; ctx.lineWidth = s.size; ctx.lineCap = 'round'; ctx.beginPath();
-                const p0 = { x: s.points[0].x + offsetX, y: s.points[0].y + offsetY };
+                ctx.strokeStyle = s.color; ctx.lineWidth = s.size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
+                ctx.moveTo(s.points[0].x, s.points[0].y);
                 if (s.type === 'pen') {
-                    ctx.moveTo(p0.x, p0.y);
-                    s.points.forEach(p => ctx.lineTo(p.x + offsetX, p.y + offsetY));
+                    s.points.forEach(p => ctx.lineTo(p.x, p.y));
                 } else if (s.points[1]) {
-                    const p1 = { x: s.points[1].x + offsetX, y: s.points[1].y + offsetY };
-                    if (s.type === 'line') { ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); }
-                    else if (s.type === 'rect') ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+                    const p1 = s.points[1];
+                    if (s.type === 'line') ctx.lineTo(p1.x, p1.y);
+                    else if (s.type === 'rect') ctx.strokeRect(s.points[0].x, s.points[0].y, p1.x - s.points[0].x, p1.y - s.points[0].y);
                     else if (s.type === 'circle') {
-                        const r = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2));
-                        ctx.arc(p0.x, p0.y, r, 0, Math.PI * 2);
+                        const r = Math.hypot(p1.x - s.points[0].x, p1.y - s.points[0].y);
+                        ctx.arc(s.points[0].x, s.points[0].y, r, 0, Math.PI * 2);
                     }
                 }
                 ctx.stroke();
             });
+            ctx.restore();
         }
 
         function loadStrokes() {
