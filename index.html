@@ -3,32 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mural Rabiscu</title>
+    <title>Rabiscu - Dark Mode</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #f0f0f0; }
-        #login-screen { display: flex; flex-direction: column; width: 300px; margin: 100px auto; gap: 10px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        input, button { padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; }
-        #ui-controls { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px; display: flex; gap: 15px; align-items: center; pointer-events: none;}
-        #btn-logout { pointer-events: auto; }
-        canvas { display: block; background-color: #ffffff; cursor: crosshair; }
-        #msg { color: red; font-size: 14px; text-align: center; }
+        /* MODO ESCURO */
+        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; color: #e0e0e0; }
+        #login-screen { 
+            display: flex; flex-direction: column; width: 320px; 
+            margin: 100px auto; gap: 12px; background: #1e1e1e; 
+            padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+        }
+        h2 { text-align: center; margin-top: 0; color: #fff; }
+        input { 
+            padding: 12px; font-size: 16px; border: 1px solid #333; 
+            border-radius: 6px; background: #2c2c2c; color: #fff; 
+        }
+        button { padding: 12px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        #btn-login { background: #3b82f6; color: white; }
+        #btn-login:hover { background: #2563eb; }
+        #btn-signup { background: #10b981; color: white; }
+        #btn-signup:hover { background: #059669; }
+        #btn-logout { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; pointer-events: auto; }
+        
+        #ui-controls { 
+            position: absolute; top: 15px; left: 15px; z-index: 10; 
+            background: rgba(30, 30, 30, 0.9); padding: 12px; 
+            border-radius: 8px; display: flex; gap: 15px; align-items: center;
+            border: 1px solid #333; pointer-events: none;
+        }
+        canvas { display: block; background-color: #121212; cursor: crosshair; }
+        #msg { color: #ff6b6b; font-size: 13px; text-align: center; min-height: 18px; }
     </style>
 </head>
 <body>
 
     <div id="login-screen">
-        <h2>Rabiscu - Entrar</h2>
-        <input type="email" id="email" placeholder="E-mail">
-        <input type="password" id="password" placeholder="Senha">
+        <h2>Rabiscu</h2>
+        <input type="email" id="email_input" placeholder="E-mail">
+        <input type="password" id="password_input" placeholder="Senha">
         <button id="btn-login">Entrar</button>
-        <button id="btn-signup" style="background:#28a745">Criar Conta</button>
+        <button id="btn-signup">Criar Conta Grátis</button>
         <p id="msg"></p>
     </div>
 
     <div id="mural-screen" style="display: none;">
         <div id="ui-controls">
-            <span>Esquerdo: Desenha | Direito: Move tela</span>
+            <span>🎨 Esquerdo: Desenha | 🖐️ Direito: Move tela</span>
             <button id="btn-logout">Sair</button>
         </div>
         <canvas id="canvas"></canvas>
@@ -39,7 +58,6 @@
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // CONFIGURAÇÃO VINDA DA SUA IMAGEM
         const firebaseConfig = {
             apiKey: "AIzaSyBgUYKbUAEmOaFvh1k6UHU_v0MSenJv5tg",
             authDomain: "rabiscu-3da1e.firebaseapp.com",
@@ -55,6 +73,9 @@
         const auth = getAuth(app);
         const db = getDatabase(app);
 
+        const emailInp = document.getElementById('email_input');
+        const passInp = document.getElementById('password_input');
+        const msg = document.getElementById('msg');
         const loginScreen = document.getElementById('login-screen');
         const muralScreen = document.getElementById('mural-screen');
         const canvas = document.getElementById('canvas');
@@ -63,20 +84,29 @@
         let offsetX = 0, offsetY = 0;
         let isDrawing = false, isPanning = false;
         let startX, startY;
-        let currentStroke = [];
         let allStrokes = [];
 
-        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
+        function resize() { 
+            canvas.width = window.innerWidth; 
+            canvas.height = window.innerHeight; 
+            render(); 
+        }
         window.addEventListener('resize', resize);
         resize();
 
-        // LOGIN / CADASTRO
+        // CORREÇÃO DOS BOTÕES
         document.getElementById('btn-signup').onclick = () => {
-            createUserWithEmailAndPassword(auth, email.value, password.value).catch(e => msg.innerText = e.message);
+            msg.innerText = "Processando...";
+            createUserWithEmailAndPassword(auth, emailInp.value, passInp.value)
+                .catch(e => msg.innerText = "Erro: " + e.message);
         };
+
         document.getElementById('btn-login').onclick = () => {
-            signInWithEmailAndPassword(auth, email.value, password.value).catch(e => msg.innerText = e.message);
+            msg.innerText = "Entrando...";
+            signInWithEmailAndPassword(auth, emailInp.value, passInp.value)
+                .catch(e => msg.innerText = "Erro: " + e.message);
         };
+
         document.getElementById('btn-logout').onclick = () => signOut(auth);
 
         onAuthStateChanged(auth, user => {
@@ -84,20 +114,26 @@
                 loginScreen.style.display = 'none';
                 muralScreen.style.display = 'block';
                 loadStrokes();
+                resize();
             } else {
                 loginScreen.style.display = 'flex';
                 muralScreen.style.display = 'none';
+                msg.innerText = "";
             }
         });
 
-        // DESENHO E MOVIMENTAÇÃO
+        // DESENHO
         canvas.addEventListener('mousedown', (e) => {
             if (e.button === 2) { 
                 isPanning = true; 
                 startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
             } else { 
                 isDrawing = true; 
-                currentStroke = [{ x: e.clientX - offsetX, y: e.clientY - offsetY }]; 
+                const stroke = [{ x: e.clientX - offsetX, y: e.clientY - offsetY }];
+                allStrokes.push(stroke); 
+                // Inicia o desenho visualmente
+                ctx.beginPath();
+                ctx.moveTo(e.clientX, e.clientY);
             }
         });
 
@@ -107,7 +143,42 @@
                 render();
             } else if (isDrawing) {
                 const p = { x: e.clientX - offsetX, y: e.clientY - offsetY };
-                currentStroke.push(p);
-                ctx.lineTo(p.x + offsetX, p.y + offsetY);
+                allStrokes[allStrokes.length - 1].push(p);
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = 'round';
+                ctx.lineTo(e.clientX, e.clientY);
                 ctx.stroke();
             }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (isDrawing && e.button === 0) {
+                const lastStroke = allStrokes[allStrokes.length - 1];
+                if (lastStroke.length > 1) push(ref(db, 'strokes'), lastStroke);
+            }
+            isDrawing = false; isPanning = false;
+        });
+
+        canvas.oncontextmenu = (e) => e.preventDefault();
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = 'round';
+            allStrokes.forEach(s => {
+                if(s.length < 2) return;
+                ctx.beginPath();
+                ctx.moveTo(s[0].x + offsetX, s[0].y + offsetY);
+                for(let i=1; i<s.length; i++) ctx.lineTo(s[i].x + offsetX, s[i].y + offsetY);
+                ctx.stroke();
+            });
+        }
+
+        function loadStrokes() {
+            allStrokes = [];
+            onChildAdded(ref(db, 'strokes'), (snap) => {
+                allStrokes.push(snap.val());
+                render();
+            });
+        }
+    </script>
+</body>
+</html>
