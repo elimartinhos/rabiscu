@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rabiscu - Estável</title>
+    <title>Rabiscu - Formas e Cores</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; }
         #login-screen { display: flex; flex-direction: column; width: 300px; margin: 100px auto; gap: 12px; background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
@@ -12,30 +12,67 @@
         button { padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         #btn-login { background: #3b82f6; color: white; }
         #btn-signup { background: #10b981; color: white; }
-        #btn-logout { background: #ef4444; color: white; }
-        #mural-screen { display: none; background: white; width: 100vw; height: 100vh; }
+        #btn-logout { background: #ef4444; color: white; font-size: 11px; }
+
+        #mural-screen { display: none; background: white; width: 100vw; height: 100vh; position: relative; }
         canvas { display: block; background-color: #ffffff; cursor: crosshair; }
-        #ui-controls { position: absolute; top: 10px; left: 10px; z-index: 10; background: #1e1e1e; color: white; padding: 10px; border-radius: 8px; display: flex; gap: 15px; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #333; }
-        input[type="color"] { width: 30px; height: 30px; border: none; background: none; cursor: pointer; }
-        select { background: #2c2c2c; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; }
-        #msg { color: #ff6b6b; font-size: 13px; text-align: center; margin-top: 10px; }
+
+        /* UI CONTROLS */
+        #ui-controls { 
+            position: absolute; top: 10px; left: 10px; z-index: 10; 
+            background: #1e1e1e; color: white; padding: 10px; 
+            border-radius: 12px; display: flex; gap: 12px; align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4); border: 1px solid #444; 
+        }
+
+        /* CIRCULO DE COR PERSONALIZADO */
+        .color-container { position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
+        #colorPicker { 
+            position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2;
+        }
+        .color-preview { 
+            width: 28px; height: 28px; border-radius: 50%; 
+            border: 2px solid white; box-shadow: 0 0 0 1px #444;
+            background: black; z-index: 1;
+        }
+
+        select { background: #2c2c2c; color: white; border: 1px solid #444; padding: 6px; border-radius: 6px; outline: none; }
+        .hint { font-size: 11px; color: #aaa; }
     </style>
 </head>
 <body>
+
     <div id="login-screen">
         <h2>Rabiscu</h2>
         <input type="email" id="email_input" placeholder="E-mail">
         <input type="password" id="password_input" placeholder="Senha">
         <button id="btn-login">Entrar</button>
         <button id="btn-signup">Criar Conta</button>
-        <p id="msg"></p>
+        <p id="msg" style="color: #ff6b6b; text-align: center; font-size: 13px;"></p>
     </div>
 
     <div id="mural-screen">
         <div id="ui-controls">
-            <input type="color" id="colorPicker" value="#000000">
-            <select id="sizePicker"><option value="2">Fino</option><option value="5" selected>Médio</option><option value="10">Grosso</option></select>
-            <span style="font-size: 12px;">Esq: Desenha | Dir: Move</span>
+            <div class="color-container">
+                <input type="color" id="colorPicker" value="#000000">
+                <div id="colorPreview" class="color-preview"></div>
+            </div>
+            
+            <select id="sizePicker">
+                <option value="2">Fino</option>
+                <option value="5" selected>Médio</option>
+                <option value="12">Grosso</option>
+            </select>
+
+            <select id="shapePicker">
+                <option value="pencil">Lápis ✏️</option>
+                <option value="line">Linha 📏</option>
+                <option value="rect">Quadrado 🟦</option>
+                <option value="circle">Círculo ⭕</option>
+                <option value="tri">Triângulo 🔺</option>
+            </select>
+
+            <span class="hint">Botão Direito: Move</span>
             <button id="btn-logout">Sair</button>
         </div>
         <canvas id="canvas"></canvas>
@@ -61,19 +98,23 @@
         const db = getDatabase(app);
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        
-        let offsetX = 0, offsetY = 0, isDrawing = false, isPanning = false, startX, startY, allStrokes = [];
+        const colorPicker = document.getElementById('colorPicker');
+        const colorPreview = document.getElementById('colorPreview');
+
+        let offsetX = 0, offsetY = 0, isDrawing = false, isPanning = false, startX, startY;
+        let allStrokes = [];
+        let tempStroke = null;
+
+        // Atualiza o circulinho de cor
+        colorPicker.oninput = () => colorPreview.style.background = colorPicker.value;
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
         window.addEventListener('resize', resize);
         resize();
 
-        document.getElementById('btn-signup').onclick = () => {
-            createUserWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = "Erro: " + e.message);
-        };
-        document.getElementById('btn-login').onclick = () => {
-            signInWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = "Dados incorretos.");
-        };
+        // Auth
+        document.getElementById('btn-signup').onclick = () => createUserWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = e.message);
+        document.getElementById('btn-login').onclick = () => signInWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = "Erro no login.");
         document.getElementById('btn-logout').onclick = () => signOut(auth);
 
         onAuthStateChanged(auth, user => {
@@ -94,11 +135,12 @@
                 isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
             } else { 
                 isDrawing = true;
-                allStrokes.push({
+                tempStroke = {
                     color: colorPicker.value,
                     size: sizePicker.value,
+                    shape: shapePicker.value,
                     points: [{ x: e.clientX - offsetX, y: e.clientY - offsetY }]
-                });
+                };
             }
         });
 
@@ -106,45 +148,66 @@
             if (isPanning) {
                 offsetX = e.clientX - startX; offsetY = e.clientY - startY;
                 render();
-            } else if (isDrawing) {
+            } else if (isDrawing && tempStroke) {
                 const p = { x: e.clientX - offsetX, y: e.clientY - offsetY };
-                allStrokes[allStrokes.length - 1].points.push(p);
+                if (tempStroke.shape === 'pencil') {
+                    tempStroke.points.push(p);
+                } else {
+                    tempStroke.points[1] = p; // Ponto final para formas
+                }
                 render();
+                drawSingle(tempStroke); // Preview em tempo real
             }
         });
 
         window.addEventListener('mouseup', () => {
-            if (isDrawing) {
-                const last = allStrokes[allStrokes.length - 1];
-                if (last && last.points.length > 1) push(ref(db, 'strokes'), last);
+            if (isDrawing && tempStroke) {
+                if (tempStroke.points.length > 1 || tempStroke.shape !== 'pencil') {
+                    push(ref(db, 'strokes'), tempStroke);
+                }
             }
-            isDrawing = false; isPanning = false;
+            isDrawing = false; isPanning = false; tempStroke = null;
         });
+
+        function drawSingle(s) {
+            if (!s.points || s.points.length < 1) return;
+            ctx.strokeStyle = s.color;
+            ctx.lineWidth = s.size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+
+            const p0 = { x: s.points[0].x + offsetX, y: s.points[0].y + offsetY };
+            
+            if (s.shape === 'pencil') {
+                ctx.moveTo(p0.x, p0.y);
+                s.points.forEach(p => ctx.lineTo(p.x + offsetX, p.y + offsetY));
+            } else if (s.points[1]) {
+                const p1 = { x: s.points[1].x + offsetX, y: s.points[1].y + offsetY };
+                if (s.shape === 'line') {
+                    ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y);
+                } else if (s.shape === 'rect') {
+                    ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+                } else if (s.shape === 'circle') {
+                    let r = Math.sqrt(Math.pow(p1.x-p0.x,2)+Math.pow(p1.y-p0.y,2));
+                    ctx.arc(p0.x, p0.y, r, 0, Math.PI*2);
+                } else if (s.shape === 'tri') {
+                    ctx.moveTo(p0.x + (p1.x - p0.x) / 2, p0.y);
+                    ctx.lineTo(p0.x, p1.y); ctx.lineTo(p1.x, p1.y); ctx.closePath();
+                }
+            }
+            ctx.stroke();
+        }
 
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            allStrokes.forEach(s => {
-                if (!s.points || s.points.length < 2) return; // BLINDAGEM CONTRA ERRO
-                ctx.strokeStyle = s.color;
-                ctx.lineWidth = s.size;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.beginPath();
-                ctx.moveTo(s.points[0].x + offsetX, s.points[0].y + offsetY);
-                s.points.forEach(p => {
-                    if(p) ctx.lineTo(p.x + offsetX, p.y + offsetY);
-                });
-                ctx.stroke();
-            });
+            allStrokes.forEach(s => drawSingle(s));
         }
 
         function loadStrokes() {
             onChildAdded(ref(db, 'strokes'), snap => {
                 const val = snap.val();
-                if(val && val.points) {
-                    allStrokes.push(val);
-                    render();
-                }
+                if(val && val.points) { allStrokes.push(val); render(); }
             });
         }
         canvas.oncontextmenu = e => e.preventDefault();
