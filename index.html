@@ -13,12 +13,19 @@
         #btn-login { background: #3b82f6; color: white; }
         #btn-signup { background: #10b981; color: white; }
         #msg { color: #ff6b6b; font-size: 13px; text-align: center; min-height: 18px; }
+        
         #ui-controls { position: absolute; top: 10px; left: 10px; z-index: 100; background: rgba(20, 20, 20, 0.95); padding: 10px; border-radius: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 95vw; border: 1px solid #444; color: white; cursor: default; }
-        #color-picker { width: 45px; height: 35px; border: 1px solid #555; padding: 0; background: none; cursor: pointer; }
-        #size-slider { width: 80px; cursor: pointer; margin: 0; }
+        
+        /* NOVO SELETOR DE CORES */
+        #color-palette { display: flex; gap: 4px; flex-wrap: wrap; max-width: 140px; }
+        .color-dot { width: 20px; height: 20px; border-radius: 3px; border: 1px solid #555; cursor: pointer; }
+        .color-dot.active { border: 2px solid #fff; transform: scale(1.1); }
+
+        #size-slider { width: 70px; cursor: pointer; margin: 0; }
         canvas { display: block; background-color: #ffffff; cursor: none; }
-        .tool-btn { background: #333; color: white; padding: 6px 12px; border-radius: 4px; font-size: 11px; border: 1px solid #555; cursor: pointer; }
+        .tool-btn { background: #333; color: white; padding: 6px 10px; border-radius: 4px; font-size: 11px; border: 1px solid #555; cursor: pointer; }
         .tool-btn.active { background: #3b82f6; border-color: #fff; }
+        
         #custom-cursor { position: fixed; pointer-events: none; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; transform: translate(-50%, -50%); z-index: 99; display: none; }
         footer { position: fixed; bottom: 10px; right: 15px; font-size: 12px; color: rgba(0,0,0,0.4); z-index: 5; pointer-events: none; font-weight: bold; }
     </style>
@@ -35,7 +42,18 @@
     </div>
     <div id="mural-screen" style="display: none;">
         <div id="ui-controls">
-            <input type="color" id="color-picker" value="#000000">
+            <div id="color-palette">
+                <div class="color-dot active" style="background: #000000" data-color="#000000"></div>
+                <div class="color-dot" style="background: #ff0000" data-color="#ff0000"></div>
+                <div class="color-dot" style="background: #00ff00" data-color="#00ff00"></div>
+                <div class="color-dot" style="background: #0000ff" data-color="#0000ff"></div>
+                <div class="color-dot" style="background: #ffff00" data-color="#ffff00"></div>
+                <div class="color-dot" style="background: #ff00ff" data-color="#ff00ff"></div>
+                <div class="color-dot" style="background: #ffa500" data-color="#ffa500"></div>
+                <div class="color-dot" style="background: #8b4513" data-color="#8b4513"></div>
+                <div class="color-dot" style="background: #808080" data-color="#808080"></div>
+                <div class="color-dot" style="background: #ffffff; border: 1px solid #ccc" data-color="#ffffff"></div>
+            </div>
             <button id="tool-pen" class="tool-btn active">Lápis</button>
             <button id="tool-eraser" class="tool-btn">Borracha</button>
             <button id="tool-line" class="tool-btn">Linha</button>
@@ -64,37 +82,35 @@
         const ctx = canvas.getContext('2d');
         const cursor = document.getElementById('custom-cursor');
         const sizeSlider = document.getElementById('size-slider');
-        const colorPicker = document.getElementById('color-picker');
         const zoomLabel = document.getElementById('zoom-label');
         
         let offsetX = 0, offsetY = 0, scale = 1;
         let isDrawing = false, isPanning = false;
         let startX, startY, allStrokes = [], currentMode = 'pen', lastDist = 0, touchMidX = 0, touchMidY = 0;
+        let selectedColor = "#000000";
+
+        // Lógica do Seletor de Cores Customizado
+        document.querySelectorAll('.color-dot').forEach(dot => {
+            dot.addEventListener('click', (e) => {
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+                selectedColor = dot.getAttribute('data-color');
+                e.stopPropagation();
+            });
+        });
 
         const updateCursorUI = (e) => {
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
             const isMenu = e.target && e.target.closest('#ui-controls');
-            
-            if (isMenu || (e.touches && e.touches.length > 1)) {
-                cursor.style.display = 'none';
-                canvas.style.cursor = 'default';
-                return;
-            }
-
+            if (isMenu || (e.touches && e.touches.length > 1)) { cursor.style.display = 'none'; canvas.style.cursor = 'default'; return; }
             if (currentMode === 'pen' || currentMode === 'eraser') {
-                cursor.style.display = 'block';
-                canvas.style.cursor = 'none';
+                cursor.style.display = 'block'; canvas.style.cursor = 'none';
                 const size = sizeSlider.value * scale;
-                cursor.style.width = size + 'px';
-                cursor.style.height = size + 'px';
-                cursor.style.left = clientX + 'px';
-                cursor.style.top = clientY + 'px';
-                cursor.style.background = currentMode === 'eraser' ? '#fff' : colorPicker.value;
-            } else {
-                cursor.style.display = 'none';
-                canvas.style.cursor = 'crosshair';
-            }
+                cursor.style.width = size + 'px'; cursor.style.height = size + 'px';
+                cursor.style.left = clientX + 'px'; cursor.style.top = clientY + 'px';
+                cursor.style.background = currentMode === 'eraser' ? '#fff' : selectedColor;
+            } else { cursor.style.display = 'none'; canvas.style.cursor = 'crosshair'; }
         };
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
@@ -118,12 +134,9 @@
             }
         });
 
-        const getWorldPos = (clientX, clientY) => ({
-            x: (clientX - offsetX) / scale,
-            y: (clientY - offsetY) / scale
-        });
+        const getWorldPos = (clientX, clientY) => ({ x: (clientX - offsetX) / scale, y: (clientY - offsetY) / scale });
 
-        // TOQUE
+        // TOUCH
         canvas.addEventListener('touchstart', (e) => {
             if (e.target.closest('#ui-controls')) return;
             if (e.touches.length === 2) {
@@ -134,12 +147,7 @@
             } else if (e.touches.length === 1) {
                 isDrawing = true;
                 const pos = getWorldPos(e.touches[0].clientX, e.touches[0].clientY);
-                allStrokes.push({
-                    type: currentMode === 'eraser' ? 'pen' : currentMode,
-                    points: [{ x: pos.x, y: pos.y }, { x: pos.x, y: pos.y }],
-                    color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value,
-                    size: sizeSlider.value
-                });
+                allStrokes.push({ type: currentMode === 'eraser' ? 'pen' : currentMode, points: [{ x: pos.x, y: pos.y }, { x: pos.x, y: pos.y }], color: currentMode === 'eraser' ? '#ffffff' : selectedColor, size: sizeSlider.value });
             }
         }, { passive: false });
 
@@ -147,12 +155,10 @@
             if (isPanning && e.touches.length === 2) {
                 const midX = (e.touches[0].pageX + e.touches[1].pageX) / 2;
                 const midY = (e.touches[0].pageY + e.touches[1].pageY) / 2;
-                offsetX = midX - touchMidX;
-                offsetY = midY - touchMidY;
+                offsetX = midX - touchMidX; offsetY = midY - touchMidY;
                 const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
                 scale = Math.min(Math.max(0.1, scale * (dist / lastDist)), 5);
-                lastDist = dist;
-                zoomLabel.innerText = Math.round(scale * 100) + "%";
+                lastDist = dist; zoomLabel.innerText = Math.round(scale * 100) + "%";
                 render();
             } else if (isDrawing && e.touches.length === 1) {
                 const pos = getWorldPos(e.touches[0].clientX, e.touches[0].clientY);
@@ -163,36 +169,22 @@
             updateCursorUI(e);
         }, { passive: false });
 
-        window.addEventListener('touchend', () => {
-            if (isDrawing) push(ref(db, 'strokes'), allStrokes[allStrokes.length - 1]);
-            isDrawing = false; isPanning = false;
-        });
+        window.addEventListener('touchend', () => { if (isDrawing) push(ref(db, 'strokes'), allStrokes[allStrokes.length - 1]); isDrawing = false; isPanning = false; });
 
         // MOUSE
         canvas.addEventListener('mousedown', (e) => {
             if (e.target.closest('#ui-controls')) return;
-            if (e.button === 2) { 
-                isPanning = true; 
-                startX = e.clientX - offsetX; 
-                startY = e.clientY - offsetY; 
-            } else {
+            if (e.button === 2) { isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; }
+            else {
                 isDrawing = true;
                 const pos = getWorldPos(e.clientX, e.clientY);
-                allStrokes.push({
-                    type: currentMode === 'eraser' ? 'pen' : currentMode,
-                    points: [{ x: pos.x, y: pos.y }, { x: pos.x, y: pos.y }],
-                    color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value,
-                    size: sizeSlider.value
-                });
+                allStrokes.push({ type: currentMode === 'eraser' ? 'pen' : currentMode, points: [{ x: pos.x, y: pos.y }, { x: pos.x, y: pos.y }], color: currentMode === 'eraser' ? '#ffffff' : selectedColor, size: sizeSlider.value });
             }
         });
 
         window.addEventListener('mousemove', (e) => {
-            if (isPanning) {
-                offsetX = e.clientX - startX;
-                offsetY = e.clientY - startY;
-                render();
-            } else if (isDrawing) {
+            if (isPanning) { offsetX = e.clientX - startX; offsetY = e.clientY - startY; render(); }
+            else if (isDrawing) {
                 const pos = getWorldPos(e.clientX, e.clientY);
                 const cur = allStrokes[allStrokes.length - 1];
                 if (cur.type === 'pen') cur.points.push(pos); else cur.points[1] = pos;
@@ -201,17 +193,8 @@
             updateCursorUI(e);
         });
 
-        window.addEventListener('mouseup', () => {
-            if (isDrawing) push(ref(db, 'strokes'), allStrokes[allStrokes.length - 1]);
-            isDrawing = false; isPanning = false;
-        });
-
-        window.addEventListener('wheel', (e) => {
-            scale = Math.min(Math.max(0.1, scale + (e.deltaY > 0 ? -0.1 : 0.1)), 5);
-            zoomLabel.innerText = Math.round(scale * 100) + "%";
-            render();
-        }, { passive: false });
-
+        window.addEventListener('mouseup', () => { if (isDrawing) push(ref(db, 'strokes'), allStrokes[allStrokes.length - 1]); isDrawing = false; isPanning = false; });
+        window.addEventListener('wheel', (e) => { scale = Math.min(Math.max(0.1, scale + (e.deltaY > 0 ? -0.1 : 0.1)), 5); zoomLabel.innerText = Math.round(scale * 100) + "%"; render(); }, { passive: false });
         canvas.oncontextmenu = (e) => e.preventDefault();
 
         function render() {
@@ -220,10 +203,8 @@
             allStrokes.forEach(s => {
                 ctx.strokeStyle = s.color; ctx.lineWidth = s.size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
                 const p0 = s.points[0];
-                if (s.type === 'pen') {
-                    ctx.moveTo(p0.x, p0.y);
-                    s.points.forEach(p => ctx.lineTo(p.x, p.y));
-                } else if (s.points[1]) {
+                if (s.type === 'pen') { ctx.moveTo(p0.x, p0.y); s.points.forEach(p => ctx.lineTo(p.x, p.y)); }
+                else if (s.points[1]) {
                     const p1 = s.points[1];
                     if (s.type === 'line') { ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); }
                     else if (s.type === 'rect') ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
