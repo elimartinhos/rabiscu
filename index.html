@@ -6,51 +6,25 @@
     <title>rabiscu by elimartinhos</title>
     <style>
         body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; color: #e0e0e0; touch-action: none; }
-        
-        #login-screen { 
-            display: flex; flex-direction: column; width: 320px; 
-            margin: 100px auto; gap: 12px; background: #1e1e1e; 
-            padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
-        }
+        #login-screen { display: flex; flex-direction: column; width: 320px; margin: 100px auto; gap: 12px; background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         h2 { text-align: center; margin-top: 0; color: #fff; }
         input { padding: 12px; font-size: 16px; border: 1px solid #333; border-radius: 6px; background: #2c2c2c; color: #fff; }
         button { padding: 12px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         #btn-login { background: #3b82f6; color: white; }
         #btn-signup { background: #10b981; color: white; }
         #msg { color: #ff6b6b; font-size: 13px; text-align: center; min-height: 18px; }
-        
-        #ui-controls { 
-            position: absolute; top: 10px; left: 10px; z-index: 100; 
-            background: rgba(20, 20, 20, 0.95); padding: 10px; 
-            border-radius: 8px; display: flex; gap: 8px; align-items: center;
-            flex-wrap: wrap; max-width: 95vw; border: 1px solid #444; color: white;
-            cursor: default;
-        }
-        
+        #ui-controls { position: absolute; top: 10px; left: 10px; z-index: 100; background: rgba(20, 20, 20, 0.95); padding: 10px; border-radius: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 95vw; border: 1px solid #444; color: white; cursor: default; }
         #color-picker { width: 40px; height: 30px; border: none; padding: 0; background: none; cursor: pointer; }
         #size-slider { width: 80px; cursor: pointer; margin: 0; }
-        
         canvas { display: block; background-color: #ffffff; cursor: none; }
         .tool-btn { background: #333; color: white; padding: 6px 12px; border-radius: 4px; font-size: 11px; border: 1px solid #555; cursor: pointer; }
         .tool-btn.active { background: #3b82f6; border-color: #fff; }
-
-        #custom-cursor {
-            position: fixed; pointer-events: none; border: 1px solid rgba(0,0,0,0.3);
-            border-radius: 50%; transform: translate(-50%, -50%); z-index: 99;
-            display: none;
-        }
-
-        /* Rodapé fixo */
-        footer {
-            position: fixed; bottom: 10px; right: 15px; font-size: 12px;
-            color: rgba(0,0,0,0.5); z-index: 5; pointer-events: none; font-weight: bold;
-        }
+        #custom-cursor { position: fixed; pointer-events: none; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; transform: translate(-50%, -50%); z-index: 99; display: none; }
+        footer { position: fixed; bottom: 10px; right: 15px; font-size: 12px; color: rgba(0,0,0,0.4); z-index: 5; pointer-events: none; font-weight: bold; }
     </style>
 </head>
 <body>
-
     <div id="custom-cursor"></div>
-
     <div id="login-screen">
         <h2>rabiscu by elimartinhos</h2>
         <input type="email" id="email_input" placeholder="E-mail">
@@ -59,7 +33,6 @@
         <button id="btn-signup">Criar Conta</button>
         <p id="msg"></p>
     </div>
-
     <div id="mural-screen" style="display: none;">
         <div id="ui-controls">
             <input type="color" id="color-picker" value="#000000">
@@ -81,16 +54,7 @@
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBgUYKbUAEmOaFvh1k6UHU_v0MSenJv5tg",
-            authDomain: "rabiscu-3da1e.firebaseapp.com",
-            databaseURL: "https://rabiscu-3da1e-default-rtdb.firebaseio.com",
-            projectId: "rabiscu-3da1e",
-            storageBucket: "rabiscu-3da1e.firebasestorage.app",
-            messagingSenderId: "103419841550",
-            appId: "1:103419841550:web:c9dd331de0f8758936405f"
-        };
-
+        const firebaseConfig = { apiKey: "AIzaSyBgUYKbUAEmOaFvh1k6UHU_v0MSenJv5tg", authDomain: "rabiscu-3da1e.firebaseapp.com", databaseURL: "https://rabiscu-3da1e-default-rtdb.firebaseio.com", projectId: "rabiscu-3da1e", storageBucket: "rabiscu-3da1e.firebasestorage.app", messagingSenderId: "103419841550", appId: "1:103419841550:web:c9dd331de0f8758936405f" };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getDatabase(app);
@@ -104,31 +68,19 @@
         const zoomLabel = document.getElementById('zoom-label');
         
         let offsetX = 0, offsetY = 0, scale = 1;
-        let isDrawing = false, isPanning = false;
-        let startX, startY, allStrokes = [], currentMode = 'pen';
-        let lastDist = 0;
+        let isDrawing = false, isPanning = false, isZooming = false;
+        let startX, startY, allStrokes = [], currentMode = 'pen', lastDist = 0;
 
         const updateCursorUI = (e) => {
-            const isMenu = e.target.closest('#ui-controls');
-            if (isMenu) {
-                cursor.style.display = 'none';
-                canvas.style.cursor = 'default';
-                return;
-            }
-
+            const isMenu = e.target && e.target.closest('#ui-controls');
+            if (isMenu || isZooming) { cursor.style.display = 'none'; canvas.style.cursor = 'default'; return; }
             if (currentMode === 'pen' || currentMode === 'eraser') {
-                cursor.style.display = 'block';
-                canvas.style.cursor = 'none';
+                cursor.style.display = 'block'; canvas.style.cursor = 'none';
                 const size = sizeSlider.value * scale;
-                cursor.style.width = size + 'px';
-                cursor.style.height = size + 'px';
-                cursor.style.left = e.clientX + 'px';
-                cursor.style.top = e.clientY + 'px';
+                cursor.style.width = size + 'px'; cursor.style.height = size + 'px';
+                cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px';
                 cursor.style.background = currentMode === 'eraser' ? '#fff' : colorPicker.value;
-            } else {
-                cursor.style.display = 'none';
-                canvas.style.cursor = 'crosshair';
-            }
+            } else { cursor.style.display = 'none'; canvas.style.cursor = 'crosshair'; }
         };
 
         document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -166,80 +118,95 @@
             return { x: (t.clientX - offsetX) / scale, y: (t.clientY - offsetY) / scale };
         };
 
-        const start = (e) => {
-            if (e.target.closest('#ui-controls')) return;
-            if (e.touches && e.touches.length === 2) {
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                isZooming = true; isDrawing = false;
                 lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                return;
+            } else if (e.touches.length === 1 && !isZooming) {
+                if (e.target.closest('#ui-controls')) return;
+                isDrawing = true;
+                const pos = getPos(e);
+                allStrokes.push({ 
+                    type: currentMode === 'eraser' ? 'pen' : currentMode,
+                    points: [{ x: pos.x, y: pos.y }],
+                    color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value,
+                    size: sizeSlider.value
+                });
             }
-            if (e.button === 2) { isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; return; }
-            isDrawing = true;
-            const pos = getPos(e);
-            allStrokes.push({ 
-                type: currentMode === 'eraser' ? 'pen' : currentMode,
-                points: [{ x: pos.x, y: pos.y }],
-                color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value,
-                size: sizeSlider.value
-            });
-        };
+        }, {passive: false});
 
-        const move = (e) => {
-            updateCursorUI(e.touches ? e.touches[0] : e);
-            if (e.touches && e.touches.length === 2) {
+        window.addEventListener('touchmove', (e) => {
+            if (isZooming && e.touches.length === 2) {
                 const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
                 scale *= (dist / lastDist); lastDist = dist;
+                scale = Math.min(Math.max(0.1, scale), 5);
                 zoomLabel.innerText = Math.round(scale * 100) + "%";
-                render(); return;
+                render();
+            } else if (isDrawing && e.touches.length === 1) {
+                const pos = getPos(e);
+                const cur = allStrokes[allStrokes.length - 1];
+                if (cur.type === 'pen') cur.points.push(pos); else cur.points[1] = pos;
+                render();
             }
-            if (isPanning) { offsetX = (e.clientX || e.touches[0].clientX) - startX; offsetY = (e.clientY || e.touches[0].clientY) - startY; render(); return; }
-            if (!isDrawing) return;
-            const pos = getPos(e);
-            const cur = allStrokes[allStrokes.length - 1];
-            if (cur.type === 'pen') cur.points.push(pos);
-            else cur.points[1] = pos;
-            render();
-        };
+            updateCursorUI(e.touches[0]);
+        }, {passive: false});
 
-        const end = () => {
+        window.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) {
+                if (isDrawing) push(ref(db, 'strokes'), allStrokes[allStrokes.length - 1]);
+                isDrawing = false; isZooming = false;
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 2) { isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; }
+            else {
+                isDrawing = true;
+                const pos = getPos(e);
+                allStrokes.push({ 
+                    type: currentMode === 'eraser' ? 'pen' : currentMode,
+                    points: [{ x: pos.x, y: pos.y }],
+                    color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value,
+                    size: sizeSlider.value
+                });
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            updateCursorUI(e);
+            if (isPanning) { offsetX = e.clientX - startX; offsetY = e.clientY - startY; render(); }
+            else if (isDrawing) {
+                const pos = getPos(e);
+                const cur = allStrokes[allStrokes.length - 1];
+                if (cur.type === 'pen') cur.points.push(pos); else cur.points[1] = pos;
+                render();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
             if (isDrawing) push(ref(db, 'strokes'), allStrokes[allStrokes.length - 1]);
             isDrawing = false; isPanning = false;
-        };
+        });
 
-        canvas.addEventListener('mousedown', start);
-        window.addEventListener('mousemove', move);
-        window.addEventListener('mouseup', end);
-        canvas.addEventListener('touchstart', (e) => { if(e.touches.length < 2) start(e); }, {passive: false});
-        window.addEventListener('touchmove', move, {passive: false});
-        window.addEventListener('touchend', end);
         canvas.oncontextmenu = (e) => e.preventDefault();
 
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(offsetX, offsetY);
-            ctx.scale(scale, scale);
+            ctx.save(); ctx.translate(offsetX, offsetY); ctx.scale(scale, scale);
             allStrokes.forEach(s => {
                 ctx.strokeStyle = s.color; ctx.lineWidth = s.size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
-                
                 const p0 = s.points[0];
                 if (s.type === 'pen') {
                     ctx.moveTo(p0.x, p0.y);
                     s.points.forEach(p => ctx.lineTo(p.x, p.y));
                 } else if (s.points[1]) {
                     const p1 = s.points[1];
-                    if (s.type === 'line') {
-                        ctx.moveTo(p0.x, p0.y);
-                        ctx.lineTo(p1.x, p1.y);
-                    } else if (s.type === 'rect') {
-                        ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
-                    } else if (s.type === 'circle') {
-                        // Cálculo para expandir a partir do clique (não do centro)
-                        const dx = p1.x - p0.x;
-                        const dy = p1.y - p0.y;
+                    if (s.type === 'line') { ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); }
+                    else if (s.type === 'rect') ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+                    else if (s.type === 'circle') {
+                        const dx = p1.x - p0.x, dy = p1.y - p0.y;
                         const r = Math.sqrt(dx*dx + dy*dy) / 2;
-                        const cx = p0.x + dx / 2;
-                        const cy = p0.y + dy / 2;
-                        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                        ctx.arc(p0.x + dx/2, p0.y + dy/2, r, 0, Math.PI * 2);
                     }
                 }
                 ctx.stroke();
