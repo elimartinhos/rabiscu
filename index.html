@@ -3,35 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rabiscu - Dark Mode</title>
+    <title>Rabiscu - Pro</title>
     <style>
-        /* MODO ESCURO */
-        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; color: #e0e0e0; }
+        /* MODO CLARO COM UI ESCURA */
+        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #f0f0f0; color: #333; }
         #login-screen { 
             display: flex; flex-direction: column; width: 320px; 
-            margin: 100px auto; gap: 12px; background: #1e1e1e; 
-            padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+            margin: 100px auto; gap: 12px; background: #fff; 
+            padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
         }
-        h2 { text-align: center; margin-top: 0; color: #fff; }
+        h2 { text-align: center; margin-top: 0; color: #1a1a1a; }
         input { 
-            padding: 12px; font-size: 16px; border: 1px solid #333; 
-            border-radius: 6px; background: #2c2c2c; color: #fff; 
+            padding: 12px; font-size: 16px; border: 1px solid #ddd; 
+            border-radius: 6px; background: #fff; color: #333; 
         }
         button { padding: 12px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         #btn-login { background: #3b82f6; color: white; }
-        #btn-login:hover { background: #2563eb; }
         #btn-signup { background: #10b981; color: white; }
-        #btn-signup:hover { background: #059669; }
-        #btn-logout { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; pointer-events: auto; }
+        #btn-logout { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; }
         
         #ui-controls { 
             position: absolute; top: 15px; left: 15px; z-index: 10; 
             background: rgba(30, 30, 30, 0.9); padding: 12px; 
             border-radius: 8px; display: flex; gap: 15px; align-items: center;
-            border: 1px solid #333; pointer-events: none;
+            border: 1px solid #333; color: white; pointer-events: auto;
         }
-        canvas { display: block; background-color: #121212; cursor: crosshair; }
-        #msg { color: #ff6b6b; font-size: 13px; text-align: center; min-height: 18px; }
+        canvas { display: block; background-color: #ffffff; cursor: crosshair; }
+        #msg { color: #d32f2f; font-size: 13px; text-align: center; min-height: 18px; }
+        .tool-btn { background: #444; color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; }
+        .tool-btn.active { background: #3b82f6; }
     </style>
 </head>
 <body>
@@ -41,25 +41,25 @@
         <input type="email" id="email_input" placeholder="E-mail">
         <input type="password" id="password_input" placeholder="Senha">
         <button id="btn-login">Entrar</button>
-        <button id="btn-signup">Criar Conta Grátis</button>
+        <button id="btn-signup">Criar Conta</button>
         <p id="msg"></p>
     </div>
 
     <div id="mural-screen" style="display: none;">
         <div id="ui-controls">
-            <span>🎨 Esquerdo: Desenha | 🖐️ Direito: Move tela</span>
+            <button id="tool-pen" class="tool-btn active">Lápis</button>
+            <button id="tool-eraser" class="tool-btn">Borracha</button>
+            <input type="range" id="size-slider" min="1" max="20" value="2">
             <button id="btn-logout">Sair</button>
         </div>
         <canvas id="canvas"></canvas>
     </div>
 
     <script type="module">
-        // Importação dos SDKs modulares do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // Configuração do seu projeto Rabiscu
         const firebaseConfig = {
             apiKey: "AIzaSyBgUYKbUAEmOaFvh1k6UHU_v0MSenJv5tg",
             authDomain: "rabiscu-3da1e.firebaseapp.com",
@@ -75,18 +75,27 @@
         const auth = getAuth(app);
         const db = getDatabase(app);
 
-        const emailInp = document.getElementById('email_input');
-        const passInp = document.getElementById('password_input');
-        const msg = document.getElementById('msg');
-        const loginScreen = document.getElementById('login-screen');
-        const muralScreen = document.getElementById('mural-screen');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-
+        const sizeSlider = document.getElementById('size-slider');
+        
         let offsetX = 0, offsetY = 0;
         let isDrawing = false, isPanning = false;
         let startX, startY;
         let allStrokes = [];
+        let currentMode = 'pen'; // 'pen' ou 'eraser'
+
+        // Controles de Ferramentas
+        document.getElementById('tool-pen').onclick = () => {
+            currentMode = 'pen';
+            document.getElementById('tool-pen').classList.add('active');
+            document.getElementById('tool-eraser').classList.remove('active');
+        };
+        document.getElementById('tool-eraser').onclick = () => {
+            currentMode = 'eraser';
+            document.getElementById('tool-eraser').classList.add('active');
+            document.getElementById('tool-pen').classList.remove('active');
+        };
 
         function resize() { 
             canvas.width = window.innerWidth; 
@@ -96,45 +105,37 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Lógica de Autenticação
-        document.getElementById('btn-signup').onclick = () => {
-            msg.innerText = "Processando...";
-            createUserWithEmailAndPassword(auth, emailInp.value, passInp.value)
-                .catch(e => msg.innerText = "Erro: " + e.message);
-        };
-
+        // Autenticação (simplificada para o exemplo)
         document.getElementById('btn-login').onclick = () => {
-            msg.innerText = "Entrando...";
-            signInWithEmailAndPassword(auth, emailInp.value, passInp.value)
-                .catch(e => msg.innerText = "Erro: " + e.message);
+            signInWithEmailAndPassword(auth, document.getElementById('email_input').value, document.getElementById('password_input').value);
         };
-
         document.getElementById('btn-logout').onclick = () => signOut(auth);
 
         onAuthStateChanged(auth, user => {
             if (user) {
-                loginScreen.style.display = 'none';
-                muralScreen.style.display = 'block';
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('mural-screen').style.display = 'block';
                 loadStrokes();
                 resize();
             } else {
-                loginScreen.style.display = 'flex';
-                muralScreen.style.display = 'none';
-                msg.innerText = "";
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('mural-screen').style.display = 'none';
             }
         });
 
-        // Lógica de Desenho e Panning
         canvas.addEventListener('mousedown', (e) => {
             if (e.button === 2) { 
                 isPanning = true; 
                 startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
             } else { 
                 isDrawing = true; 
-                const stroke = [{ x: e.clientX - offsetX, y: e.clientY - offsetY }];
+                const color = currentMode === 'eraser' ? '#ffffff' : '#000000';
+                const stroke = { 
+                    points: [{ x: e.clientX - offsetX, y: e.clientY - offsetY }],
+                    color: color,
+                    size: sizeSlider.value
+                };
                 allStrokes.push(stroke); 
-                ctx.beginPath();
-                ctx.moveTo(e.clientX, e.clientY);
             }
         });
 
@@ -144,17 +145,15 @@
                 render();
             } else if (isDrawing) {
                 const p = { x: e.clientX - offsetX, y: e.clientY - offsetY };
-                allStrokes[allStrokes.length - 1].push(p);
-                ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = 'round';
-                ctx.lineTo(e.clientX, e.clientY);
-                ctx.stroke();
+                allStrokes[allStrokes.length - 1].points.push(p);
+                render();
             }
         });
 
         window.addEventListener('mouseup', (e) => {
             if (isDrawing && e.button === 0) {
                 const lastStroke = allStrokes[allStrokes.length - 1];
-                if (lastStroke.length > 1) push(ref(db, 'strokes'), lastStroke);
+                if (lastStroke.points.length > 1) push(ref(db, 'strokes'), lastStroke);
             }
             isDrawing = false; isPanning = false;
         });
@@ -163,17 +162,19 @@
 
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = 'round';
             allStrokes.forEach(s => {
-                if(s.length < 2) return;
+                ctx.strokeStyle = s.color; 
+                ctx.lineWidth = s.size; 
+                ctx.lineCap = 'round';
                 ctx.beginPath();
-                ctx.moveTo(s[0].x + offsetX, s[0].y + offsetY);
-                for(let i=1; i<s.length; i++) ctx.lineTo(s[i].x + offsetX, s[i].y + offsetY);
+                ctx.moveTo(s.points[0].x + offsetX, s.points[0].y + offsetY);
+                for(let i=1; i<s.points.length; i++) {
+                    ctx.lineTo(s.points[i].x + offsetX, s.points[i].y + offsetY);
+                }
                 ctx.stroke();
             });
         }
 
-        // Carregar traços do banco de dados em tempo real
         function loadStrokes() {
             allStrokes = [];
             onChildAdded(ref(db, 'strokes'), (snap) => {
