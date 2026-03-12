@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mural Rabiscu</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #f0f0f0; }
+        #login-screen { display: flex; flex-direction: column; width: 300px; margin: 100px auto; gap: 10px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        input, button { padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        #ui-controls { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px; display: flex; gap: 15px; align-items: center; pointer-events: none;}
+        #btn-logout { pointer-events: auto; }
+        canvas { display: block; background-color: #ffffff; cursor: crosshair; }
+        #msg { color: red; font-size: 14px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <h2>Rabiscu - Entrar</h2>
+        <input type="email" id="email" placeholder="E-mail">
+        <input type="password" id="password" placeholder="Senha">
+        <button id="btn-login">Entrar</button>
+        <button id="btn-signup" style="background:#28a745">Criar Conta</button>
+        <p id="msg"></p>
+    </div>
+
+    <div id="mural-screen" style="display: none;">
+        <div id="ui-controls">
+            <span>Esquerdo: Desenha | Direito: Move tela</span>
+            <button id="btn-logout">Sair</button>
+        </div>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        // CONFIGURAÇÃO VINDA DA SUA IMAGEM
+        const firebaseConfig = {
+            apiKey: "AIzaSyBgUYKbUAEmOaFvh1k6UHU_v0MSenJv5tg",
+            authDomain: "rabiscu-3da1e.firebaseapp.com",
+            databaseURL: "https://rabiscu-3da1e-default-rtdb.firebaseio.com",
+            projectId: "rabiscu-3da1e",
+            storageBucket: "rabiscu-3da1e.firebasestorage.app",
+            messagingSenderId: "103419841550",
+            appId: "1:103419841550:web:c9dd331de0f8758936405f",
+            measurementId: "G-CZY9K0HBJC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const loginScreen = document.getElementById('login-screen');
+        const muralScreen = document.getElementById('mural-screen');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let offsetX = 0, offsetY = 0;
+        let isDrawing = false, isPanning = false;
+        let startX, startY;
+        let currentStroke = [];
+        let allStrokes = [];
+
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // LOGIN / CADASTRO
+        document.getElementById('btn-signup').onclick = () => {
+            createUserWithEmailAndPassword(auth, email.value, password.value).catch(e => msg.innerText = e.message);
+        };
+        document.getElementById('btn-login').onclick = () => {
+            signInWithEmailAndPassword(auth, email.value, password.value).catch(e => msg.innerText = e.message);
+        };
+        document.getElementById('btn-logout').onclick = () => signOut(auth);
+
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                loginScreen.style.display = 'none';
+                muralScreen.style.display = 'block';
+                loadStrokes();
+            } else {
+                loginScreen.style.display = 'flex';
+                muralScreen.style.display = 'none';
+            }
+        });
+
+        // DESENHO E MOVIMENTAÇÃO
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 2) { 
+                isPanning = true; 
+                startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
+            } else { 
+                isDrawing = true; 
+                currentStroke = [{ x: e.clientX - offsetX, y: e.clientY - offsetY }]; 
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                offsetX = e.clientX - startX; offsetY = e.clientY - startY;
+                render();
+            } else if (isDrawing) {
+                const p = { x: e.clientX - offsetX, y: e.clientY - offsetY };
+                currentStroke.push(p);
+                ctx.lineTo(p.x + offsetX, p.y + offsetY);
+                ctx.stroke();
+            }
