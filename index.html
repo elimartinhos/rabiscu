@@ -3,91 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rabiscu - Pro Edition</title>
+    <title>Rabiscu - Dark Mode</title>
     <style>
-        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; }
-        #login-screen { display: flex; flex-direction: column; width: 300px; margin: 100px auto; gap: 12px; background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        h2 { text-align: center; color: #fff; margin: 0 0 10px 0; }
-        input { padding: 12px; background: #2c2c2c; color: #fff; border: 1px solid #333; border-radius: 6px; }
-        button { padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        /* MODO ESCURO */
+        body, html { margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #121212; color: #e0e0e0; }
+        #login-screen { 
+            display: flex; flex-direction: column; width: 320px; 
+            margin: 100px auto; gap: 12px; background: #1e1e1e; 
+            padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+        }
+        h2 { text-align: center; margin-top: 0; color: #fff; }
+        input { 
+            padding: 12px; font-size: 16px; border: 1px solid #333; 
+            border-radius: 6px; background: #2c2c2c; color: #fff; 
+        }
+        button { padding: 12px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         #btn-login { background: #3b82f6; color: white; }
+        #btn-login:hover { background: #2563eb; }
         #btn-signup { background: #10b981; color: white; }
-        #btn-logout { background: #ef4444; color: white; font-size: 11px; }
-
-        #mural-screen { display: none; background: white; width: 100vw; height: 100vh; position: relative; }
-        /* Cursor customizado para precisão */
-        canvas { display: block; background-color: #ffffff; cursor: none; }
-
-        #ui-controls { 
-            position: absolute; top: 10px; left: 10px; z-index: 10; 
-            background: #1e1e1e; color: white; padding: 10px; 
-            border-radius: 12px; display: flex; gap: 12px; align-items: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4); border: 1px solid #444; 
-        }
-
-        .color-container { position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
-        #colorPicker { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2; }
-        .color-preview { width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 1px #444; background: black; z-index: 1; }
-
-        .slider-container { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #aaa; }
-        input[type="range"] { cursor: pointer; accent-color: #3b82f6; width: 60px; }
-
-        select { background: #2c2c2c; color: white; border: 1px solid #444; padding: 6px; border-radius: 6px; outline: none; }
+        #btn-signup:hover { background: #059669; }
+        #btn-logout { background: #ef4444; color: white; padding: 5px 10px; font-size: 12px; pointer-events: auto; }
         
-        .btn-tool { background: #444; color: white; border: 1px solid #666; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: 0.2s; }
-        .btn-tool.active { background: #3b82f6; border-color: white; transform: scale(1.05); }
-
-        /* Cursor flutuante que segue o mouse */
-        #custom-cursor {
-            position: fixed; pointer-events: none; border: 1px solid rgba(0,0,0,0.5); border-radius: 50%;
-            transform: translate(-50%, -50%); z-index: 9999; display: none;
+        #ui-controls { 
+            position: absolute; top: 15px; left: 15px; z-index: 10; 
+            background: rgba(30, 30, 30, 0.9); padding: 12px; 
+            border-radius: 8px; display: flex; gap: 15px; align-items: center;
+            border: 1px solid #333; pointer-events: none;
         }
+        canvas { display: block; background-color: #121212; cursor: crosshair; }
+        #msg { color: #ff6b6b; font-size: 13px; text-align: center; min-height: 18px; }
     </style>
 </head>
 <body>
-
-    <div id="custom-cursor"></div>
 
     <div id="login-screen">
         <h2>Rabiscu</h2>
         <input type="email" id="email_input" placeholder="E-mail">
         <input type="password" id="password_input" placeholder="Senha">
         <button id="btn-login">Entrar</button>
-        <button id="btn-signup">Criar Conta</button>
-        <p id="msg" style="color: #ff6b6b; text-align: center; font-size: 13px;"></p>
+        <button id="btn-signup">Criar Conta Grátis</button>
+        <p id="msg"></p>
     </div>
 
-    <div id="mural-screen">
+    <div id="mural-screen" style="display: none;">
         <div id="ui-controls">
-            <div class="color-container">
-                <input type="color" id="colorPicker" value="#000000">
-                <div id="colorPreview" class="color-preview"></div>
-            </div>
-            
-            <div class="slider-container">
-                <input type="range" id="sizeSlider" min="2" max="30" value="5">
-            </div>
-
-            <select id="shapePicker">
-                <option value="pencil">Lápis ✏️</option>
-                <option value="line">Linha 📏</option>
-                <option value="rect">Quadrado 🟦</option>
-                <option value="circle">Círculo ⭕</option>
-                <option value="tri">Triângulo 🔺</option>
-            </select>
-
-            <button id="eraserBtn" class="btn-tool">Borracha 🧹</button>
-
+            <span>🎨 Esquerdo: Desenha | 🖐️ Direito: Move tela</span>
             <button id="btn-logout">Sair</button>
         </div>
         <canvas id="canvas"></canvas>
     </div>
 
     <script type="module">
+        // Importação dos SDKs modulares do Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getDatabase, ref, push, onChildAdded, onChildRemoved, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
+        // Configuração do seu projeto Rabiscu
         const firebaseConfig = {
             apiKey: "AIzaSyBgUYKbUAEmOaFvh1k6UHU_v0MSenJv5tg",
             authDomain: "rabiscu-3da1e.firebaseapp.com",
@@ -95,172 +67,120 @@
             projectId: "rabiscu-3da1e",
             storageBucket: "rabiscu-3da1e.firebasestorage.app",
             messagingSenderId: "103419841550",
-            appId: "1:103419841550:web:c9dd331de0f8758936405f"
+            appId: "1:103419841550:web:c9dd331de0f8758936405f",
+            measurementId: "G-CZY9K0HBJC"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getDatabase(app);
+
+        const emailInp = document.getElementById('email_input');
+        const passInp = document.getElementById('password_input');
+        const msg = document.getElementById('msg');
+        const loginScreen = document.getElementById('login-screen');
+        const muralScreen = document.getElementById('mural-screen');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const cursor = document.getElementById('custom-cursor');
-        
-        let offsetX = 0, offsetY = 0, isDrawing = false, isPanning = false, startX, startY;
-        let allStrokes = {}; 
-        let tempStroke = null;
-        let isEraser = false;
-        let currentUser = null;
 
-        // Alternar entre Borracha e Pincel
-        const eraserBtn = document.getElementById('eraserBtn');
-        const shapePicker = document.getElementById('shapePicker');
+        let offsetX = 0, offsetY = 0;
+        let isDrawing = false, isPanning = false;
+        let startX, startY;
+        let allStrokes = [];
 
-        eraserBtn.onclick = () => {
-            isEraser = !isEraser;
-            eraserBtn.classList.toggle('active', isEraser);
-            updateCursor();
-        };
-
-        shapePicker.onchange = () => {
-            isEraser = false;
-            eraserBtn.classList.remove('active');
-            updateCursor();
-        };
-
-        function updateCursor() {
-            const size = sizeSlider.value;
-            cursor.style.width = size + 'px';
-            cursor.style.height = size + 'px';
-            if (isEraser) {
-                cursor.style.border = "2px solid red";
-                cursor.style.background = "rgba(255,0,0,0.2)";
-            } else {
-                cursor.style.border = "1px solid white";
-                cursor.style.background = colorPicker.value + "55"; // Transparente
-            }
+        function resize() { 
+            canvas.width = window.innerWidth; 
+            canvas.height = window.innerHeight; 
+            render(); 
         }
-
-        colorPicker.oninput = () => {
-            colorPreview.style.background = colorPicker.value;
-            updateCursor();
-        };
-        sizeSlider.oninput = updateCursor;
-
-        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
         window.addEventListener('resize', resize);
+        resize();
 
-        // Auth
-        document.getElementById('btn-login').onclick = () => signInWithEmailAndPassword(auth, email_input.value, password_input.value);
-        document.getElementById('btn-signup').onclick = () => createUserWithEmailAndPassword(auth, email_input.value, password_input.value);
+        // Lógica de Autenticação
+        document.getElementById('btn-signup').onclick = () => {
+            msg.innerText = "Processando...";
+            createUserWithEmailAndPassword(auth, emailInp.value, passInp.value)
+                .catch(e => msg.innerText = "Erro: " + e.message);
+        };
+
+        document.getElementById('btn-login').onclick = () => {
+            msg.innerText = "Entrando...";
+            signInWithEmailAndPassword(auth, emailInp.value, passInp.value)
+                .catch(e => msg.innerText = "Erro: " + e.message);
+        };
+
         document.getElementById('btn-logout').onclick = () => signOut(auth);
 
         onAuthStateChanged(auth, user => {
-            currentUser = user;
             if (user) {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('mural-screen').style.display = 'block';
-                cursor.style.display = 'block';
-                allStrokes = {};
+                loginScreen.style.display = 'none';
+                muralScreen.style.display = 'block';
                 loadStrokes();
                 resize();
-                updateCursor();
             } else {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('mural-screen').style.display = 'none';
-                cursor.style.display = 'none';
+                loginScreen.style.display = 'flex';
+                muralScreen.style.display = 'none';
+                msg.innerText = "";
             }
         });
 
+        // Lógica de Desenho e Panning
         canvas.addEventListener('mousedown', (e) => {
             if (e.button === 2) { 
-                isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
+                isPanning = true; 
+                startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
             } else { 
-                isDrawing = true;
-                if (!isEraser) {
-                    tempStroke = {
-                        userId: currentUser.uid,
-                        color: colorPicker.value,
-                        size: sizeSlider.value,
-                        shape: shapePicker.value,
-                        points: [{ x: e.clientX - offsetX, y: e.clientY - offsetY }]
-                    };
-                }
+                isDrawing = true; 
+                const stroke = [{ x: e.clientX - offsetX, y: e.clientY - offsetY }];
+                allStrokes.push(stroke); 
+                ctx.beginPath();
+                ctx.moveTo(e.clientX, e.clientY);
             }
         });
 
         canvas.addEventListener('mousemove', (e) => {
-            const x = e.clientX - offsetX;
-            const y = e.clientY - offsetY;
-
-            // Move o cursor customizado
-            cursor.style.left = e.clientX + 'px';
-            cursor.style.top = e.clientY + 'px';
-
             if (isPanning) {
                 offsetX = e.clientX - startX; offsetY = e.clientY - startY;
                 render();
             } else if (isDrawing) {
-                if (isEraser) {
-                    checkErase(x, y);
-                } else if (tempStroke) {
-                    const p = { x, y };
-                    if (tempStroke.shape === 'pencil') tempStroke.points.push(p);
-                    else tempStroke.points[1] = p;
-                    render();
-                    drawSingle(tempStroke);
-                }
+                const p = { x: e.clientX - offsetX, y: e.clientY - offsetY };
+                allStrokes[allStrokes.length - 1].push(p);
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = 'round';
+                ctx.lineTo(e.clientX, e.clientY);
+                ctx.stroke();
             }
         });
 
-        window.addEventListener('mouseup', () => {
-            if (isDrawing && tempStroke && !isEraser) {
-                push(ref(db, 'strokes'), tempStroke);
+        window.addEventListener('mouseup', (e) => {
+            if (isDrawing && e.button === 0) {
+                const lastStroke = allStrokes[allStrokes.length - 1];
+                if (lastStroke.length > 1) push(ref(db, 'strokes'), lastStroke);
             }
-            isDrawing = false; isPanning = false; tempStroke = null;
+            isDrawing = false; isPanning = false;
         });
 
-        function checkErase(x, y) {
-            const eraserSize = parseInt(sizeSlider.value) * 1.5;
-            for (let id in allStrokes) {
-                const s = allStrokes[id];
-                const hit = s.points.some(p => Math.hypot(p.x - x, p.y - y) < eraserSize);
-                if (hit) {
-                    remove(ref(db, `strokes/${id}`));
-                }
-            }
-        }
-
-        function drawSingle(s) {
-            if (!s.points || s.points.length < 1) return;
-            ctx.strokeStyle = s.color;
-            ctx.lineWidth = s.size;
-            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-            ctx.beginPath();
-            const p0 = { x: s.points[0].x + offsetX, y: s.points[0].y + offsetY };
-            if (s.shape === 'pencil') {
-                ctx.moveTo(p0.x, p0.y);
-                s.points.forEach(p => ctx.lineTo(p.x + offsetX, p.y + offsetY));
-            } else if (s.points[1]) {
-                const p1 = { x: s.points[1].x + offsetX, y: s.points[1].y + offsetY };
-                if (s.shape === 'line') { ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); }
-                else if (s.shape === 'rect') { ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y); }
-                else if (s.shape === 'circle') { let r = Math.sqrt(Math.pow(p1.x-p0.x,2)+Math.pow(p1.y-p0.y,2)); ctx.arc(p0.x, p0.y, r, 0, Math.PI*2); }
-                else if (s.shape === 'tri') { ctx.moveTo(p0.x + (p1.x - p0.x) / 2, p0.y); ctx.lineTo(p0.x, p1.y); ctx.lineTo(p1.x, p1.y); ctx.closePath(); }
-            }
-            ctx.stroke();
-        }
+        canvas.oncontextmenu = (e) => e.preventDefault();
 
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for (let id in allStrokes) drawSingle(allStrokes[id]);
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.lineCap = 'round';
+            allStrokes.forEach(s => {
+                if(s.length < 2) return;
+                ctx.beginPath();
+                ctx.moveTo(s[0].x + offsetX, s[0].y + offsetY);
+                for(let i=1; i<s.length; i++) ctx.lineTo(s[i].x + offsetX, s[i].y + offsetY);
+                ctx.stroke();
+            });
         }
 
+        // Carregar traços do banco de dados em tempo real
         function loadStrokes() {
-            const strokesRef = ref(db, 'strokes');
-            onChildAdded(strokesRef, snap => { allStrokes[snap.key] = snap.val(); render(); });
-            onChildRemoved(strokesRef, snap => { delete allStrokes[snap.key]; render(); });
+            allStrokes = [];
+            onChildAdded(ref(db, 'strokes'), (snap) => {
+                allStrokes.push(snap.val());
+                render();
+            });
         }
-        canvas.oncontextmenu = e => e.preventDefault();
     </script>
 </body>
 </html>
