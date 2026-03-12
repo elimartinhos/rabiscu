@@ -68,35 +68,24 @@
         const zoomLabel = document.getElementById('zoom-label');
         
         let offsetX = 0, offsetY = 0, scale = 1;
-        let isDrawing = false, isPanning = false, isZooming = false;
-        let startX, startY, allStrokes = [], currentMode = 'pen', lastDist = 0;
+        let isDrawing = false, isPanning = false;
+        let startX, startY, allStrokes = [], currentMode = 'pen', lastDist = 0, touchMidX = 0, touchMidY = 0;
 
         const updateCursorUI = (e) => {
             const isMenu = e.target && e.target.closest('#ui-controls');
-            if (isMenu || isZooming) { cursor.style.display = 'none'; canvas.style.cursor = 'default'; return; }
+            if (isMenu || (e.touches && e.touches.length > 1)) { cursor.style.display = 'none'; canvas.style.cursor = 'default'; return; }
             if (currentMode === 'pen' || currentMode === 'eraser') {
                 cursor.style.display = 'block'; canvas.style.cursor = 'none';
                 const size = sizeSlider.value * scale;
                 cursor.style.width = size + 'px'; cursor.style.height = size + 'px';
-                cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px';
+                cursor.style.left = (e.clientX || e.touches[0].clientX) + 'px'; cursor.style.top = (e.clientY || e.touches[0].clientY) + 'px';
                 cursor.style.background = currentMode === 'eraser' ? '#fff' : colorPicker.value;
             } else { cursor.style.display = 'none'; canvas.style.cursor = 'crosshair'; }
         };
 
-        document.querySelectorAll('.tool-btn').forEach(btn => {
-            btn.onclick = () => {
-                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentMode = btn.id.replace('tool-', '');
-            };
-        });
-
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; render(); }
         window.addEventListener('resize', resize);
         resize();
-
-        document.getElementById('btn-login').onclick = () => signInWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = "Erro no login.");
-        document.getElementById('btn-signup').onclick = () => createUserWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = "Erro ao criar.");
 
         onAuthStateChanged(auth, user => {
             if (user) {
@@ -107,87 +96,73 @@
             }
         });
 
-        window.addEventListener('wheel', (e) => {
-            scale = Math.min(Math.max(0.1, scale + (e.deltaY > 0 ? -0.1 : 0.1)), 5);
-            zoomLabel.innerText = Math.round(scale * 100) + "%";
-            render();
-        }, { passive: false });
-
-        const getPos = (e) => {
-            const t = e.touches ? e.touches[0] : e;
-            return { x: (t.clientX - offsetX) / scale, y: (t.clientY - offsetY) / scale };
-        };
-
+        // Eventos Touch (Dois dedos para Mover e Zoom)
         canvas.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
-                isZooming = true; isDrawing = false;
+                isPanning = true; isDrawing = false;
                 lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-            } else if (e.touches.length === 1 && !isZooming) {
+                touchMidX = (e.touches[0].pageX + e.touches[1].pageX) / 2 - offsetX;
+                touchMidY = (e.touches[0].pageY + e.touches[1].pageY) / 2 - offsetY;
+            } else if (e.touches.length === 1 && !isPanning) {
                 if (e.target.closest('#ui-controls')) return;
                 isDrawing = true;
-                const pos = getPos(e);
-                allStrokes.push({ 
-                    type: currentMode === 'eraser' ? 'pen' : currentMode,
-                    points: [{ x: pos.x, y: pos.y }],
-                    color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value,
-                    size: sizeSlider.value
-                });
+                const t = e.touches[0];
+                startX = (t.clientX - offsetX) / scale; startY = (t.clientY - offsetY) / scale;
+                allStrokes.push({ type: currentMode === 'eraser' ? 'pen' : currentMode, points: [{ x: startX, y: startY }], color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value, size: sizeSlider.value });
             }
         }, {passive: false});
 
         window.addEventListener('touchmove', (e) => {
-            if (isZooming && e.touches.length === 2) {
+            if (isPanning && e.touches.length === 2) {
+                const midX = (e.touches[0].pageX + e.touches[1].pageX) / 2;
+                const midY = (e.touches[0].pageY + e.touches[1].pageY) / 2;
+                offsetX = midX - touchMidX;
+                offsetY = midY - touchMidY;
+
                 const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                scale *= (dist / lastDist); lastDist = dist;
-                scale = Math.min(Math.max(0.1, scale), 5);
+                const zoomFactor = dist / lastDist;
+                scale = Math.min(Math.max(0.1, scale * zoomFactor), 5);
+                lastDist = dist;
                 zoomLabel.innerText = Math.round(scale * 100) + "%";
                 render();
             } else if (isDrawing && e.touches.length === 1) {
-                const pos = getPos(e);
+                const t = e.touches[0];
+                const pos = { x: (t.clientX - offsetX) / scale, y: (t.clientY - offsetY) / scale };
                 const cur = allStrokes[allStrokes.length - 1];
                 if (cur.type === 'pen') cur.points.push(pos); else cur.points[1] = pos;
                 render();
             }
-            updateCursorUI(e.touches[0]);
+            updateCursorUI(e);
         }, {passive: false});
 
-        window.addEventListener('touchend', (e) => {
-            if (e.touches.length === 0) {
-                if (isDrawing) push(ref(db, 'strokes'), allStrokes[allStrokes.length - 1]);
-                isDrawing = false; isZooming = false;
-            }
-        });
-
-        canvas.addEventListener('mousedown', (e) => {
-            if (e.button === 2) { isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; }
-            else {
-                isDrawing = true;
-                const pos = getPos(e);
-                allStrokes.push({ 
-                    type: currentMode === 'eraser' ? 'pen' : currentMode,
-                    points: [{ x: pos.x, y: pos.y }],
-                    color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value,
-                    size: sizeSlider.value
-                });
-            }
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            updateCursorUI(e);
-            if (isPanning) { offsetX = e.clientX - startX; offsetY = e.clientY - startY; render(); }
-            else if (isDrawing) {
-                const pos = getPos(e);
-                const cur = allStrokes[allStrokes.length - 1];
-                if (cur.type === 'pen') cur.points.push(pos); else cur.points[1] = pos;
-                render();
-            }
-        });
-
-        window.addEventListener('mouseup', () => {
+        window.addEventListener('touchend', () => {
             if (isDrawing) push(ref(db, 'strokes'), allStrokes[allStrokes.length - 1]);
             isDrawing = false; isPanning = false;
         });
 
+        // Eventos Mouse
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 2) { isPanning = true; startX = e.clientX - offsetX; startY = e.clientY - offsetY; }
+            else {
+                isDrawing = true;
+                const x = (e.clientX - offsetX) / scale; const y = (e.clientY - offsetY) / scale;
+                allStrokes.push({ type: currentMode === 'eraser' ? 'pen' : currentMode, points: [{ x, y }], color: currentMode === 'eraser' ? '#ffffff' : colorPicker.value, size: sizeSlider.value });
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isPanning) { offsetX = e.clientX - startX; offsetY = e.clientY - startY; render(); }
+            else if (isDrawing) {
+                const pos = { x: (e.clientX - offsetX) / scale, y: (e.clientY - offsetY) / scale };
+                const cur = allStrokes[allStrokes.length - 1];
+                if (cur.type === 'pen') cur.points.push(pos); else cur.points[1] = pos;
+                render();
+            }
+            updateCursorUI(e);
+        });
+
+        window.addEventListener('mouseup', () => { if (isDrawing) push(ref(db, 'strokes'), allStrokes[allStrokes.length - 1]); isDrawing = false; isPanning = false; });
+        window.addEventListener('wheel', (e) => { scale = Math.min(Math.max(0.1, scale + (e.deltaY > 0 ? -0.1 : 0.1)), 5); zoomLabel.innerText = Math.round(scale * 100) + "%"; render(); }, { passive: false });
         canvas.oncontextmenu = (e) => e.preventDefault();
 
         function render() {
@@ -196,17 +171,14 @@
             allStrokes.forEach(s => {
                 ctx.strokeStyle = s.color; ctx.lineWidth = s.size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath();
                 const p0 = s.points[0];
-                if (s.type === 'pen') {
-                    ctx.moveTo(p0.x, p0.y);
-                    s.points.forEach(p => ctx.lineTo(p.x, p.y));
-                } else if (s.points[1]) {
+                if (s.type === 'pen') { ctx.moveTo(p0.x, p0.y); s.points.forEach(p => ctx.lineTo(p.x, p.y)); }
+                else if (s.points[1]) {
                     const p1 = s.points[1];
                     if (s.type === 'line') { ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); }
                     else if (s.type === 'rect') ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
                     else if (s.type === 'circle') {
                         const dx = p1.x - p0.x, dy = p1.y - p0.y;
-                        const r = Math.sqrt(dx*dx + dy*dy) / 2;
-                        ctx.arc(p0.x + dx/2, p0.y + dy/2, r, 0, Math.PI * 2);
+                        ctx.arc(p0.x + dx/2, p0.y + dy/2, Math.sqrt(dx*dx + dy*dy) / 2, 0, Math.PI * 2);
                     }
                 }
                 ctx.stroke();
@@ -214,12 +186,9 @@
             ctx.restore();
         }
 
-        function loadStrokes() {
-            onChildAdded(ref(db, 'strokes'), (snap) => {
-                allStrokes.push(snap.val());
-                render();
-            });
-        }
+        function loadStrokes() { onChildAdded(ref(db, 'strokes'), (snap) => { allStrokes.push(snap.val()); render(); }); }
+        document.getElementById('btn-login').onclick = () => signInWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = "Erro no login.");
+        document.getElementById('btn-signup').onclick = () => createUserWithEmailAndPassword(auth, email_input.value, password_input.value).catch(e => msg.innerText = "Erro ao criar.");
     </script>
 </body>
 </html>
