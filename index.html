@@ -25,12 +25,12 @@
         #ui-controls { 
             position: absolute; top: 15px; left: 15px; z-index: 10; 
             background: rgba(30, 30, 30, 0.9); padding: 12px; 
-            border-radius: 8px; display: flex; gap: 15px; align-items: center;
+            border-radius: 8px; display: flex; gap: 10px; align-items: center;
             border: 1px solid #333; color: white; pointer-events: auto;
         }
         canvas { display: block; background-color: #ffffff; cursor: crosshair; }
         #msg { color: #d32f2f; font-size: 13px; text-align: center; min-height: 18px; }
-        .tool-btn { background: #444; color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; }
+        .tool-btn { background: #444; color: white; padding: 5px 10px; border-radius: 4px; font-size: 11px; }
         .tool-btn.active { background: #3b82f6; }
     </style>
 </head>
@@ -49,6 +49,8 @@
         <div id="ui-controls">
             <button id="tool-pen" class="tool-btn active">Lápis</button>
             <button id="tool-eraser" class="tool-btn">Borracha</button>
+            <button id="tool-rect" class="tool-btn">Quadrado</button>
+            <button id="tool-circle" class="tool-btn">Círculo</button>
             <input type="range" id="size-slider" min="1" max="20" value="2">
             <button id="btn-logout">Sair</button>
         </div>
@@ -83,19 +85,17 @@
         let isDrawing = false, isPanning = false;
         let startX, startY;
         let allStrokes = [];
-        let currentMode = 'pen'; // 'pen' ou 'eraser'
+        let currentMode = 'pen'; 
 
-        // Controles de Ferramentas
-        document.getElementById('tool-pen').onclick = () => {
-            currentMode = 'pen';
-            document.getElementById('tool-pen').classList.add('active');
-            document.getElementById('tool-eraser').classList.remove('active');
-        };
-        document.getElementById('tool-eraser').onclick = () => {
-            currentMode = 'eraser';
-            document.getElementById('tool-eraser').classList.add('active');
-            document.getElementById('tool-pen').classList.remove('active');
-        };
+        // Alternar Ferramentas
+        const buttons = document.querySelectorAll('.tool-btn');
+        buttons.forEach(btn => {
+            btn.onclick = () => {
+                buttons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMode = btn.id.replace('tool-', '');
+            };
+        });
 
         function resize() { 
             canvas.width = window.innerWidth; 
@@ -105,7 +105,6 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Autenticação (simplificada para o exemplo)
         document.getElementById('btn-login').onclick = () => {
             signInWithEmailAndPassword(auth, document.getElementById('email_input').value, document.getElementById('password_input').value);
         };
@@ -128,10 +127,14 @@
                 isPanning = true; 
                 startX = e.clientX - offsetX; startY = e.clientY - offsetY; 
             } else { 
-                isDrawing = true; 
+                isDrawing = true;
+                startX = e.clientX - offsetX;
+                startY = e.clientY - offsetY;
+                
                 const color = currentMode === 'eraser' ? '#ffffff' : '#000000';
                 const stroke = { 
-                    points: [{ x: e.clientX - offsetX, y: e.clientY - offsetY }],
+                    type: currentMode === 'eraser' ? 'pen' : currentMode,
+                    points: [{ x: startX, y: startY }],
                     color: color,
                     size: sizeSlider.value
                 };
@@ -144,8 +147,15 @@
                 offsetX = e.clientX - startX; offsetY = e.clientY - startY;
                 render();
             } else if (isDrawing) {
-                const p = { x: e.clientX - offsetX, y: e.clientY - offsetY };
-                allStrokes[allStrokes.length - 1].points.push(p);
+                const currentStroke = allStrokes[allStrokes.length - 1];
+                const curX = e.clientX - offsetX;
+                const curY = e.clientY - offsetY;
+
+                if (currentStroke.type === 'pen') {
+                    currentStroke.points.push({ x: curX, y: curY });
+                } else {
+                    currentStroke.points[1] = { x: curX, y: curY };
+                }
                 render();
             }
         });
@@ -153,7 +163,7 @@
         window.addEventListener('mouseup', (e) => {
             if (isDrawing && e.button === 0) {
                 const lastStroke = allStrokes[allStrokes.length - 1];
-                if (lastStroke.points.length > 1) push(ref(db, 'strokes'), lastStroke);
+                if (lastStroke.points.length > 1 || lastStroke.type !== 'pen') push(ref(db, 'strokes'), lastStroke);
             }
             isDrawing = false; isPanning = false;
         });
@@ -167,9 +177,22 @@
                 ctx.lineWidth = s.size; 
                 ctx.lineCap = 'round';
                 ctx.beginPath();
-                ctx.moveTo(s.points[0].x + offsetX, s.points[0].y + offsetY);
-                for(let i=1; i<s.points.length; i++) {
-                    ctx.lineTo(s.points[i].x + offsetX, s.points[i].y + offsetY);
+
+                if (s.type === 'pen') {
+                    ctx.moveTo(s.points[0].x + offsetX, s.points[0].y + offsetY);
+                    for(let i=1; i<s.points.length; i++) ctx.lineTo(s.points[i].x + offsetX, s.points[i].y + offsetY);
+                } else if (s.points[1]) {
+                    const x = s.points[0].x + offsetX;
+                    const y = s.points[0].y + offsetY;
+                    const w = s.points[1].x - s.points[0].x;
+                    const h = s.points[1].y - s.points[0].y;
+                    
+                    if (s.type === 'rect') {
+                        ctx.strokeRect(x, y, w, h);
+                    } else if (s.type === 'circle') {
+                        const r = Math.sqrt(w*w + h*h);
+                        ctx.arc(x, y, r, 0, Math.PI * 2);
+                    }
                 }
                 ctx.stroke();
             });
